@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { listResumes, uploadResume, type Resume } from "@/lib/api";
+import { AuthGuard } from "@/components/auth-guard";
 
 interface ExpEntry {
   title?: string;
@@ -92,6 +93,10 @@ function ResumeDetails({ resume: r }: { resume: Resume }) {
 }
 
 export default function ResumesPage() {
+  return <AuthGuard><ResumesContent /></AuthGuard>;
+}
+
+function ResumesContent() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);

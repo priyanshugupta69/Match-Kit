@@ -12,8 +12,13 @@ import {
 } from "@/lib/api";
 import { ScoreRing } from "@/components/score-ring";
 import { SkillBadge } from "@/components/skill-badge";
+import { AuthGuard } from "@/components/auth-guard";
 
 export default function MatchPage() {
+  return <AuthGuard><MatchContent /></AuthGuard>;
+}
+
+function MatchContent() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [jds, setJds] = useState<JobDescription[]>([]);
   const [loading, setLoading] = useState(true);

@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from app.database import engine
 from app.models import Base
-from app.routers import job_descriptions, matching, resumes
+from app.routers import auth, job_descriptions, matching, resumes
 
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api")
 app.include_router(resumes.router, prefix="/api")
 app.include_router(job_descriptions.router, prefix="/api")
 app.include_router(matching.router, prefix="/api")

@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import JDSkill, JobDescription
+from app.dependencies import get_current_user
+from app.models import JDSkill, JobDescription, User
 from app.schemas import JDCreate, JDOut, JDSkillExtracted
 from app.services.embeddings import generate_embedding
 from app.services.parser import parse_jd
@@ -15,13 +16,14 @@ router = APIRouter(prefix="/job-descriptions", tags=["job_descriptions"])
 
 
 @router.post("/", response_model=JDOut)
-async def create_jd(body: JDCreate, db: AsyncSession = Depends(get_db)):
+async def create_jd(body: JDCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """Parse a job description text → LLM extract → embed → store."""
     parsed = await parse_jd(body.raw_text)
 
     embedding = generate_embedding(body.raw_text)
 
     jd = JobDescription(
+        user_id=user.id,
         title=body.title or parsed.title,
         company=body.company or parsed.company,
         raw_text=body.raw_text,
@@ -54,9 +56,9 @@ async def create_jd(body: JDCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/", response_model=list[JDOut])
-async def list_jds(db: AsyncSession = Depends(get_db)):
+async def list_jds(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     result = await db.execute(
-        select(JobDescription).options(selectinload(JobDescription.skills)).order_by(JobDescription.created_at.desc())
+        select(JobDescription).options(selectinload(JobDescription.skills)).where(JobDescription.user_id == user.id).order_by(JobDescription.created_at.desc())
     )
     jds = result.scalars().all()
     return [
@@ -73,9 +75,9 @@ async def list_jds(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{jd_id}", response_model=JDOut)
-async def get_jd(jd_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_jd(jd_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     result = await db.execute(
-        select(JobDescription).options(selectinload(JobDescription.skills)).where(JobDescription.id == jd_id)
+        select(JobDescription).options(selectinload(JobDescription.skills)).where(JobDescription.id == jd_id, JobDescription.user_id == user.id)
     )
     jd = result.scalar_one_or_none()
     if not jd:

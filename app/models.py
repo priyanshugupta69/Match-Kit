@@ -16,10 +16,23 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    verification_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Resume(Base):
     __tablename__ = "resumes"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     file_name: Mapped[str] = mapped_column(Text, nullable=False)
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     parsed_data: Mapped[dict] = mapped_column(JSONB, nullable=True)
@@ -35,6 +48,7 @@ class JobDescription(Base):
     __tablename__ = "job_descriptions"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     company: Mapped[str] = mapped_column(Text, nullable=True)
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -74,6 +88,7 @@ class MatchResult(Base):
     __tablename__ = "match_results"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     resume_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("resumes.id", ondelete="CASCADE"))
     jd_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("job_descriptions.id", ondelete="CASCADE"))
     similarity_score: Mapped[float] = mapped_column(Float, nullable=True)

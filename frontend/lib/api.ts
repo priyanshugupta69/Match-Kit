@@ -1,17 +1,115 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {};
+
+  // Merge any existing headers
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
+  }
+
+  // Add auth header if token exists (skip for FormData — browser sets content-type)
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      ...options?.headers,
-    },
+    headers,
   });
+
+  if (res.status === 401) {
+    // Token expired or invalid — clear and redirect
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+    throw new Error("Session expired. Please log in again.");
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Request failed");
   }
   return res.json();
+}
+
+// --- Auth Types ---
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+// --- Auth ---
+export async function register(data: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<{ message: string }> {
+  return request<{ message: string }>("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function login(data: {
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
+  const res = await request<AuthResponse>("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  // Store token and user
+  localStorage.setItem("token", res.access_token);
+  localStorage.setItem("user", JSON.stringify(res.user));
+  return res;
+}
+
+export async function verifyEmail(token: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/api/auth/verify?token=${token}`);
+}
+
+export async function getMe(): Promise<AuthUser> {
+  return request<AuthUser>("/api/auth/me");
+}
+
+export function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  window.location.href = "/login";
+}
+
+export function getStoredUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem("user");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function isLoggedIn(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!localStorage.getItem("token");
 }
 
 // --- Types ---

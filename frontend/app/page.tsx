@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { isLoggedIn } from "@/lib/api";
+import { useEffect, useState } from "react";
 
 const features = [
   {
@@ -34,6 +38,14 @@ const features = [
 ];
 
 export default function Home() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setLoggedIn(isLoggedIn());
+  }, []);
+
   return (
     <div className="animate-fade-in">
       {/* Hero */}
@@ -52,18 +64,37 @@ export default function Home() {
           skill gap analysis.
         </p>
         <div className="flex gap-4">
-          <Link
-            href="/resumes"
-            className="px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
-          >
-            Upload Resume
-          </Link>
-          <Link
-            href="/job-descriptions"
-            className="px-5 py-2.5 border border-[#d8d3c9] text-sm font-medium rounded-lg hover:bg-white transition-colors"
-          >
-            Add Job Description
-          </Link>
+          {mounted && loggedIn ? (
+            <>
+              <Link
+                href="/resumes"
+                className="px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+              >
+                Upload Resume
+              </Link>
+              <Link
+                href="/job-descriptions"
+                className="px-5 py-2.5 border border-[#d8d3c9] text-sm font-medium rounded-lg hover:bg-white transition-colors"
+              >
+                Add Job Description
+              </Link>
+            </>
+          ) : mounted ? (
+            <>
+              <Link
+                href="/register"
+                className="px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+              >
+                Get Started
+              </Link>
+              <Link
+                href="/login"
+                className="px-5 py-2.5 border border-[#d8d3c9] text-sm font-medium rounded-lg hover:bg-white transition-colors"
+              >
+                Log in
+              </Link>
+            </>
+          ) : null}
         </div>
       </section>
 

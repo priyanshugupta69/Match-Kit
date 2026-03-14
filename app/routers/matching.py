@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models import JobDescription, MatchResult, Resume
+from app.dependencies import get_current_user
+from app.models import JobDescription, MatchResult, Resume, User
 from app.schemas import BatchMatchRequest, BatchMatchResponse, MatchResultOut, SkillGap
 from app.services.embeddings import cosine_similarity
 from app.services.matching import compute_skill_gaps, rerank_candidates
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/match", tags=["matching"])
 
 
 async def _match_single(
-    resume: Resume, jd: JobDescription, db: AsyncSession
+    resume: Resume, jd: JobDescription, db: AsyncSession, user_id: uuid.UUID
 ) -> MatchResult:
     """Run similarity + skill gap for a single resume-JD pair."""
     # Cosine similarity from embeddings
@@ -40,6 +41,7 @@ async def _match_single(
     missing = [g.skill for g in gaps if g.status == "missing"]
 
     match_result = MatchResult(
+        user_id=user_id,
         resume_id=resume.id,
         jd_id=jd.id,
         similarity_score=sim_score,
@@ -70,24 +72,24 @@ def _build_result_out(mr: MatchResult, gaps: list[SkillGap] | None = None) -> Ma
 
 @router.post("/single", response_model=MatchResultOut)
 async def match_single(
-    resume_id: uuid.UUID, jd_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+    resume_id: uuid.UUID, jd_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """Match a single resume against a single JD."""
     resume_result = await db.execute(
-        select(Resume).options(selectinload(Resume.skills)).where(Resume.id == resume_id)
+        select(Resume).options(selectinload(Resume.skills)).where(Resume.id == resume_id, Resume.user_id == user.id)
     )
     resume = resume_result.scalar_one_or_none()
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
 
     jd_result = await db.execute(
-        select(JobDescription).options(selectinload(JobDescription.skills)).where(JobDescription.id == jd_id)
+        select(JobDescription).options(selectinload(JobDescription.skills)).where(JobDescription.id == jd_id, JobDescription.user_id == user.id)
     )
     jd = jd_result.scalar_one_or_none()
     if not jd:
         raise HTTPException(status_code=404, detail="Job description not found")
 
-    mr = await _match_single(resume, jd, db)
+    mr = await _match_single(resume, jd, db, user.id)
 
     # Rerank with cross-encoder
     rerank_results = await rerank_candidates(jd.raw_text, [resume.raw_text])
@@ -108,20 +110,20 @@ async def match_single(
 
 
 @router.post("/batch", response_model=BatchMatchResponse)
-async def match_batch(body: BatchMatchRequest, db: AsyncSession = Depends(get_db)):
+async def match_batch(body: BatchMatchRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """Match multiple resumes against one JD. Processes in parallel with asyncio."""
     jd_result = await db.execute(
-        select(JobDescription).options(selectinload(JobDescription.skills)).where(JobDescription.id == body.jd_id)
+        select(JobDescription).options(selectinload(JobDescription.skills)).where(JobDescription.id == body.jd_id, JobDescription.user_id == user.id)
     )
     jd = jd_result.scalar_one_or_none()
     if not jd:
         raise HTTPException(status_code=404, detail="Job description not found")
 
-    # Load all resumes
+    # Load all resumes (scoped to current user)
     resume_result = await db.execute(
         select(Resume)
         .options(selectinload(Resume.skills))
-        .where(Resume.id.in_(body.resume_ids))
+        .where(Resume.id.in_(body.resume_ids), Resume.user_id == user.id)
     )
     resumes = list(resume_result.scalars().all())
     if not resumes:
@@ -130,7 +132,7 @@ async def match_batch(body: BatchMatchRequest, db: AsyncSession = Depends(get_db
     # Compute similarity + gaps for each
     match_results = []
     for resume in resumes:
-        mr = await _match_single(resume, jd, db)
+        mr = await _match_single(resume, jd, db, user.id)
         match_results.append((resume, mr))
 
     # Batch rerank
@@ -161,10 +163,10 @@ async def match_batch(body: BatchMatchRequest, db: AsyncSession = Depends(get_db
 
 
 @router.get("/results/{jd_id}", response_model=list[MatchResultOut])
-async def get_match_results(jd_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_match_results(jd_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """Get all match results for a JD, ranked by final score."""
     result = await db.execute(
-        select(MatchResult).where(MatchResult.jd_id == jd_id).order_by(MatchResult.rerank_score.desc().nullslast())
+        select(MatchResult).where(MatchResult.jd_id == jd_id, MatchResult.user_id == user.id).order_by(MatchResult.rerank_score.desc().nullslast())
     )
     results = result.scalars().all()
     return [_build_result_out(mr) for mr in results]

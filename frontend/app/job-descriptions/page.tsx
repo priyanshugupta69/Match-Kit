@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createJD, listJDs, type JobDescription } from "@/lib/api";
+import { AuthGuard } from "@/components/auth-guard";
 
 function JDDetails({ jd }: { jd: JobDescription }) {
   const parsed = jd.parsed_data as Record<string, unknown> | null;
@@ -82,6 +83,10 @@ function JDDetails({ jd }: { jd: JobDescription }) {
 }
 
 export default function JDPage() {
+  return <AuthGuard><JDContent /></AuthGuard>;
+}
+
+function JDContent() {
   const [jds, setJds] = useState<JobDescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
