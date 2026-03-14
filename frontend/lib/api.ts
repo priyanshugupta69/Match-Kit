@@ -112,6 +112,22 @@ export function isLoggedIn(): boolean {
   return !!localStorage.getItem("token");
 }
 
+export async function getGoogleAuthUrl(): Promise<string> {
+  const res = await request<{ url: string }>("/api/auth/google/url");
+  return res.url;
+}
+
+export async function googleCallback(code: string): Promise<AuthResponse> {
+  const res = await request<AuthResponse>("/api/auth/google/callback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  localStorage.setItem("token", res.access_token);
+  localStorage.setItem("user", JSON.stringify(res.user));
+  return res;
+}
+
 // --- Types ---
 export interface Skill {
   skill: string;

@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     JWT_EXPIRY_MINUTES: int = 60 * 24  # 24 hours
     VERIFICATION_TOKEN_EXPIRY_MINUTES: int = 60 * 24  # 24 hours
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:3000/auth/google/callback"
+
     # Email (SMTP)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

@@ -1,9 +1,13 @@
+import uuid
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from jose import JWTError
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
@@ -122,3 +126,96 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 async def get_me(user: User = Depends(get_current_user)):
     """Get the current authenticated user."""
     return {"id": str(user.id), "email": user.email, "name": user.name}
+
+
+# --- Google OAuth ---
+class GoogleCallbackRequest(BaseModel):
+    code: str
+
+
+@router.get("/google/url")
+async def google_auth_url():
+    """Return the Google OAuth consent URL for the frontend to redirect to."""
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google OAuth not configured")
+    params = (
+        f"client_id={settings.GOOGLE_CLIENT_ID}"
+        f"&redirect_uri={settings.GOOGLE_REDIRECT_URI}"
+        f"&response_type=code"
+        f"&scope=openid%20email%20profile"
+        f"&access_type=offline"
+        f"&prompt=consent"
+    )
+    return {"url": f"https://accounts.google.com/o/oauth2/v2/auth?{params}"}
+
+
+@router.post("/google/callback", response_model=AuthResponse)
+async def google_callback(body: GoogleCallbackRequest, db: AsyncSession = Depends(get_db)):
+    """Exchange Google auth code for user info, create/find user, return JWT."""
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=501, detail="Google OAuth not configured")
+
+    # Exchange code for tokens
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": body.code,
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+                "grant_type": "authorization_code",
+            },
+        )
+
+    if token_res.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to exchange Google auth code")
+
+    token_data = token_res.json()
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="No access token from Google")
+
+    # Get user info from Google
+    async with httpx.AsyncClient() as client:
+        userinfo_res = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    if userinfo_res.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to get Google user info")
+
+    google_user = userinfo_res.json()
+    email = google_user.get("email")
+    name = google_user.get("name", email)
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Google account has no email")
+
+    # Find or create user
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        # Auto-create and auto-verify (Google already verified their email)
+        user = User(
+            email=email,
+            name=name,
+            hashed_password=hash_password(uuid.uuid4().hex),  # random password
+            is_verified=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    elif not user.is_verified:
+        # Auto-verify if they sign in with Google
+        user.is_verified = True
+        await db.commit()
+
+    jwt_token = create_access_token(str(user.id))
+
+    return AuthResponse(
+        access_token=jwt_token,
+        user={"id": str(user.id), "email": user.email, "name": user.name},
+    )
