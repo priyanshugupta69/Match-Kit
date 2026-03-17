@@ -184,7 +184,23 @@ export interface BatchMatchResponse {
   total: number;
 }
 
+export interface BatchUploadResult {
+  successful: Resume[];
+  failed: { file_name: string; error: string }[];
+}
+
 // --- Resumes ---
+export async function uploadResumes(files: File[]): Promise<BatchUploadResult> {
+  const form = new FormData();
+  for (const file of files) {
+    form.append("files", file);
+  }
+  return request<BatchUploadResult>("/api/resumes/upload-batch", {
+    method: "POST",
+    body: form,
+  });
+}
+
 export async function uploadResume(file: File): Promise<Resume> {
   const form = new FormData();
   form.append("file", file);

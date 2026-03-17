@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { listResumes, uploadResume, type Resume } from "@/lib/api";
+import {
+  listResumes,
+  uploadResume,
+  uploadResumes,
+  type Resume,
+  type BatchUploadResult,
+} from "@/lib/api";
 import { AuthGuard } from "@/components/auth-guard";
 
 interface ExpEntry {
@@ -96,12 +102,20 @@ export default function ResumesPage() {
   return <AuthGuard><ResumesContent /></AuthGuard>;
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function ResumesContent() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showModal, setShowModal] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
@@ -116,19 +130,48 @@ function ResumesContent() {
 
   useEffect(() => { load(); }, []);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setSelectedFiles(Array.from(files));
+    setShowModal(true);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) setShowModal(false);
+      return next;
+    });
+  };
+
+  const handleBatchUpload = async () => {
+    if (selectedFiles.length === 0) return;
+    setShowModal(false);
     setUploading(true);
     setError(null);
     try {
-      const resume = await uploadResume(file);
-      setResumes((prev) => [resume, ...prev]);
+      if (selectedFiles.length === 1) {
+        const resume = await uploadResume(selectedFiles[0]);
+        setResumes((prev) => [resume, ...prev]);
+      } else {
+        const result: BatchUploadResult = await uploadResumes(selectedFiles);
+        if (result.successful.length > 0) {
+          setResumes((prev) => [...result.successful, ...prev]);
+        }
+        if (result.failed.length > 0) {
+          const failedNames = result.failed
+            .map((f) => `${f.file_name}: ${f.error}`)
+            .join("; ");
+          setError(`Some files failed: ${failedNames}`);
+        }
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      setSelectedFiles([]);
     }
   };
 
@@ -148,16 +191,69 @@ function ResumesContent() {
             uploading ? "opacity-60 pointer-events-none" : ""
           }`}
         >
-          {uploading ? "Processing..." : "Upload Resume"}
+          {uploading ? "Processing..." : "Upload Resumes"}
           <input
             ref={fileRef}
             type="file"
             accept=".pdf,.docx,.txt"
+            multiple
             className="hidden"
-            onChange={handleUpload}
+            onChange={handleFilesSelected}
           />
         </label>
       </div>
+
+      {showModal && selectedFiles.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-[#f0ede7]">
+              <h2 className="text-lg font-semibold">
+                Upload {selectedFiles.length} file{selectedFiles.length > 1 ? "s" : ""}
+              </h2>
+              <p className="text-sm text-[#7a7670] mt-1">
+                Review files before uploading
+              </p>
+            </div>
+            <div className="px-6 py-4 max-h-64 overflow-y-auto">
+              <div className="space-y-2">
+                {selectedFiles.map((file, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-3 bg-[#fafaf8] border border-[#f0ede7] rounded-lg"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{file.name}</p>
+                      <p className="text-xs text-[#7a7670]">{formatFileSize(file.size)}</p>
+                    </div>
+                    <button
+                      onClick={() => removeFile(i)}
+                      className="ml-3 p-1 text-[#7a7670] hover:text-red-500 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-[#f0ede7] flex justify-end gap-3">
+              <button
+                onClick={() => { setShowModal(false); setSelectedFiles([]); }}
+                className="px-4 py-2 text-sm font-medium text-[#7a7670] hover:text-[#2c2925] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBatchUpload}
+                className="px-5 py-2 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+              >
+                Upload All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
@@ -167,7 +263,7 @@ function ResumesContent() {
 
       {uploading && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm">
-          Uploading and parsing resume with Claude... This may take a moment.
+          Uploading and parsing resume(s) with Claude... This may take a moment.
         </div>
       )}
 

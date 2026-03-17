@@ -89,6 +89,11 @@ class MatchResultOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class BatchUploadResult(BaseModel):
+    successful: List[ResumeOut]
+    failed: List[Dict]  # {"file_name": str, "error": str}
+
+
 class BatchMatchRequest(BaseModel):
     jd_id: uuid.UUID
     resume_ids: List[uuid.UUID]
