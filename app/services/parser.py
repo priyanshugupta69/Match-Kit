@@ -1,11 +1,7 @@
 import json
 
-import anthropic
-
-from app.config import settings
 from app.schemas import JDParseResult, ResumeParseResult
-
-client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+from app.services.gemini_llm import generate_json_text, fix_and_parse_json
 
 RESUME_PROMPT = """You are a resume parser. Extract structured data from the following resume text.
 
@@ -46,27 +42,12 @@ Job description text:
 
 
 async def parse_resume(text: str) -> ResumeParseResult:
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": RESUME_PROMPT + text}],
-    )
-    raw = message.content[0].text
-    # Strip markdown code fences if present
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-    data = json.loads(raw)
+    raw = await generate_json_text(RESUME_PROMPT + text, max_output_tokens=8192)
+    data = fix_and_parse_json(raw)
     return ResumeParseResult(**data)
 
 
 async def parse_jd(text: str) -> JDParseResult:
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": JD_PROMPT + text}],
-    )
-    raw = message.content[0].text
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-    data = json.loads(raw)
+    raw = await generate_json_text(JD_PROMPT + text, max_output_tokens=8192)
+    data = fix_and_parse_json(raw)
     return JDParseResult(**data)

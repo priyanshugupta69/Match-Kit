@@ -115,7 +115,7 @@ PDF/DOCX Upload
 - Python 3.9+
 - Node.js 18+
 - PostgreSQL with pgvector (or a [Neon](https://neon.tech) account)
-- [Anthropic API key](https://console.anthropic.com/)
+- A Gemini-capable API key: either [Vertex AI Express Mode](https://cloud.google.com/vertex-ai/generative-ai/docs/start/express-mode/overview) or [Google AI Studio](https://aistudio.google.com/apikey). After adding it to `.env`, run `python scripts/verify_gemini_connection.py` — it tells you whether to set `GEMINI_CLIENT=vertex_express` or `GEMINI_CLIENT=google_ai_studio`.
 
 ### 1. Clone & Setup Backend
 
@@ -137,7 +137,9 @@ cp .env.example .env
 Edit `.env`:
 ```env
 DATABASE_URL=postgresql+asyncpg://user:pass@host/dbname?ssl=require
-ANTHROPIC_API_KEY=sk-ant-...
+VERTEX_AI_API_KEY=your-api-key
+GEMINI_CLIENT=vertex_express
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ### 3. Start Backend

@@ -1,12 +1,9 @@
 import json
 from typing import Dict, List
 
-import anthropic
-
 from app.config import settings
 from app.schemas import SkillGap
-
-client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+from app.services.gemini_llm import generate_json_text
 
 RERANK_PROMPT = """You are a resume-JD matching evaluator. Score how well each resume matches the job description.
 
@@ -30,8 +27,8 @@ Return ONLY valid JSON array, no other text."""
 async def rerank_candidates(
     jd_text: str, resume_texts: List[str]
 ) -> List[Dict]:
-    """Rerank resume texts against a JD using Claude as a cross-encoder."""
-    if not settings.ANTHROPIC_API_KEY or not resume_texts:
+    """Rerank resume texts against a JD using Gemini as a cross-encoder."""
+    if not (settings.VERTEX_AI_API_KEY or settings.GEMINI_API_KEY) or not resume_texts:
         return [{"index": i, "relevance_score": 0.0} for i in range(len(resume_texts))]
 
     # Build resume block with numbered entries
@@ -41,15 +38,7 @@ async def rerank_candidates(
 
     prompt = RERANK_PROMPT.format(jd_text=jd_text[:3000], resume_block=resume_block)
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw = message.content[0].text
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+    raw = await generate_json_text(prompt, max_output_tokens=4096)
 
     try:
         results = json.loads(raw)
