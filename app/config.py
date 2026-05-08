@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DATABASE_URL: str
-    NEON_ENDPOINT: str = ""
     # Gemini: use VERTEX_AI_API_KEY (Vertex express) or GEMINI_API_KEY (same secret, alternate name)
     VERTEX_AI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
