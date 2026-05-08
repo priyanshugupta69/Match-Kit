@@ -1,8 +1,18 @@
+import json
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
+    # Set DB_SECRET_ARN (prod) to fetch DB_USER+DB_PASSWORD from AWS Secrets Manager,
+    # or set DB_USER+DB_PASSWORD directly (local dev).
+    DB_SECRET_ARN: str = ""
+    DB_HOST: str = ""
+    DB_NAME: str = "postgres"
+    DB_USER: str = ""
+    DB_PASSWORD: str = ""
+    AWS_REGION: str = "us-east-1"
     # Gemini: use VERTEX_AI_API_KEY (Vertex express) or GEMINI_API_KEY (same secret, alternate name)
     VERTEX_AI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
@@ -33,6 +43,21 @@ class Settings(BaseSettings):
     APP_URL: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def _load_db_credentials(self):
+        if self.DB_SECRET_ARN and not (self.DB_USER and self.DB_PASSWORD):
+            import boto3
+            client = boto3.client("secretsmanager", region_name=self.AWS_REGION)
+            secret = json.loads(client.get_secret_value(SecretId=self.DB_SECRET_ARN)["SecretString"])
+            self.DB_USER = secret["username"]
+            self.DB_PASSWORD = secret["password"]
+        if not (self.DB_USER and self.DB_PASSWORD and self.DB_HOST):
+            raise ValueError(
+                "Database not configured: set DB_SECRET_ARN (with DB_HOST) for AWS, "
+                "or DB_USER + DB_PASSWORD + DB_HOST for local dev."
+            )
+        return self
 
 
 settings = Settings()

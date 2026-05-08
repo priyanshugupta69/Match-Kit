@@ -135,8 +135,20 @@ cp .env.example .env
 ```
 
 Edit `.env`:
+
 ```env
-DATABASE_URL=postgresql+asyncpg://user:pass@host/dbname?ssl=require
+# Database — local dev: set credentials directly
+DB_USER=postgres
+DB_PASSWORD=your-password
+DB_HOST=localhost
+DB_NAME=postgres
+
+# Production (EC2 / Docker on EC2): set DB_SECRET_ARN instead, credentials are
+# fetched from AWS Secrets Manager via boto3 using the instance role.
+# DB_SECRET_ARN=arn:aws:secretsmanager:us-east-1:123456789012:secret:rds!cluster-...
+# DB_HOST=your-rds-endpoint
+# AWS_REGION=us-east-1
+
 VERTEX_AI_API_KEY=your-api-key
 GEMINI_CLIENT=vertex_express
 GEMINI_MODEL=gemini-2.5-flash

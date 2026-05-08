@@ -18,7 +18,7 @@
 
 ## Important Setup
 - Copy `.env.example` to `.env` and configure:
-  - `DATABASE_URL` - PostgreSQL with pgvector
+  - DB connection: either `DB_SECRET_ARN` + `DB_HOST` + `DB_NAME` + `AWS_REGION` (prod, fetches creds from AWS Secrets Manager), or `DB_USER` + `DB_PASSWORD` + `DB_HOST` + `DB_NAME` (local dev). DSN is assembled in `app/database.py`.
   - `VERTEX_AI_API_KEY` or `GEMINI_API_KEY`
   - `GEMINI_CLIENT` - `vertex_express` or `google_ai_studio`
   - `GEMINI_MODEL` - defaults to `gemini-2.5-flash`
