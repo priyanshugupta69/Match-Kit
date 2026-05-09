@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     SMTP_FROM: str = ""
     APP_URL: str = "http://localhost:3000"
 
+    # Logging
+    LOG_LEVEL: str = "INFO"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @model_validator(mode="after")

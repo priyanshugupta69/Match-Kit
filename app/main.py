@@ -7,6 +7,9 @@ from sqlalchemy import text
 from app.database import engine
 from app.models import Base
 from app.routers import auth, job_descriptions, matching, resumes
+from app.services.logger import LoggerConfig
+
+LoggerConfig.get_instance()
 
 
 @asynccontextmanager
