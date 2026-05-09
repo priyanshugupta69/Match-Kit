@@ -17,4 +17,4 @@ COPY alembic.ini .
 EXPOSE 10000
 
 # 4. Multiple workers for concurrent requests
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000", "--workers", "2"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000", "--workers", "1"]
