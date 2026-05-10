@@ -10,7 +10,7 @@ export function SkillBadge({
   required?: boolean;
 }) {
   const styles = {
-    match: "bg-blue-50 text-blue-700 border-blue-200",
+    match: "bg-green-50 text-green-800 border-green-200",
     partial: "bg-amber-50 text-amber-700 border-amber-200",
     missing: "bg-red-50 text-red-600 border-red-200",
   };
@@ -22,7 +22,7 @@ export function SkillBadge({
       <span
         className={`w-1.5 h-1.5 rounded-full ${
           status === "match"
-            ? "bg-blue-500"
+            ? "bg-green-600"
             : status === "partial"
             ? "bg-amber-500"
             : "bg-red-400"

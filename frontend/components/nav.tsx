@@ -32,7 +32,7 @@ export function Nav() {
     <nav className="sticky top-0 z-50 bg-[#f5f2ec] border-b border-[#d8d3c9]">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
         <Link href="/" className="font-mono text-sm font-medium tracking-tight">
-          resu<span className="text-[#1a3cff]">match</span>
+          resu<span className="text-[#1F6B3A]">match</span>
         </Link>
 
         <div className="flex items-center gap-8">
@@ -58,7 +58,7 @@ export function Nav() {
                 </span>
                 <button
                   onClick={logout}
-                  className="text-xs text-[#7a7670] hover:text-[#e8440a] transition-colors"
+                  className="text-xs text-[#7a7670] hover:text-[#8BC53F] transition-colors"
                 >
                   Logout
                 </button>
@@ -80,7 +80,7 @@ export function Nav() {
               </Link>
               <Link
                 href="/register"
-                className="px-4 py-1.5 bg-[#1a3cff] text-white text-xs font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+                className="px-4 py-1.5 bg-[#1F6B3A] text-white text-xs font-medium rounded-lg hover:bg-[#15522B] transition-colors"
               >
                 Sign up
               </Link>

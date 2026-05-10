@@ -44,7 +44,7 @@ export default function RegisterPage() {
           </p>
           <Link
             href="/login"
-            className="inline-block px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+            className="inline-block px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors"
           >
             Go to Login
           </Link>
@@ -108,7 +108,7 @@ export default function RegisterPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Priyanshu Gupta"
-              className="w-full px-3 py-2.5 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1a3cff] bg-[#f5f2ec]/50"
+              className="w-full px-3 py-2.5 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50"
             />
           </div>
           <div>
@@ -120,7 +120,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full px-3 py-2.5 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1a3cff] bg-[#f5f2ec]/50"
+              className="w-full px-3 py-2.5 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50"
             />
           </div>
           <div>
@@ -132,13 +132,13 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 6 characters"
-              className="w-full px-3 py-2.5 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1a3cff] bg-[#f5f2ec]/50"
+              className="w-full px-3 py-2.5 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50"
             />
           </div>
           <button
             type="submit"
             disabled={loading || !name.trim() || !email.trim() || !password.trim()}
-            className="w-full py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors disabled:opacity-50"
+            className="w-full py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors disabled:opacity-50"
           >
             {loading ? "Creating account..." : "Create account"}
           </button>
@@ -146,7 +146,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm text-[#7a7670] mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="text-[#1a3cff] hover:underline">
+          <Link href="/login" className="text-[#1F6B3A] hover:underline">
             Log in
           </Link>
         </p>

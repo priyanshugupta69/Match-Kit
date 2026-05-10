@@ -33,7 +33,7 @@ function JDDetails({ jd }: { jd: JobDescription }) {
             .map((s, i) => (
               <span
                 key={i}
-                className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200"
+                className="px-2.5 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-800 border-green-200"
               >
                 {s.skill}
               </span>
@@ -146,7 +146,7 @@ function JDContent() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+          className="px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors"
         >
           {showForm ? "Cancel" : "Add JD"}
         </button>
@@ -173,7 +173,7 @@ function JDContent() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Senior Backend Engineer"
-                className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1a3cff] bg-[#f5f2ec]/50"
+                className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50"
               />
             </div>
             <div>
@@ -184,7 +184,7 @@ function JDContent() {
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 placeholder="Acme Inc"
-                className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1a3cff] bg-[#f5f2ec]/50"
+                className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50"
               />
             </div>
           </div>
@@ -197,13 +197,13 @@ function JDContent() {
               onChange={(e) => setRawText(e.target.value)}
               rows={8}
               placeholder="Paste the full job description here..."
-              className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1a3cff] bg-[#f5f2ec]/50 resize-y"
+              className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50 resize-y"
             />
           </div>
           <button
             type="submit"
             disabled={submitting || !title.trim() || !rawText.trim()}
-            className="px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors disabled:opacity-50"
+            className="px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors disabled:opacity-50"
           >
             {submitting ? "Parsing with Claude..." : "Create & Parse"}
           </button>

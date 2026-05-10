@@ -50,13 +50,13 @@ export default function Home() {
     <div className="animate-fade-in">
       {/* Hero */}
       <section className="py-16">
-        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#1a3cff] mb-5">
+        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#1F6B3A] mb-5">
           AI-Powered Resume Matching
         </p>
         <h1 className="text-5xl font-semibold tracking-tight leading-[1.1] mb-6">
           Resume–JD
           <br />
-          <span className="text-[#e8440a] italic">Matching</span> Engine
+          <span className="text-[#8BC53F] italic">Matching</span> Engine
         </h1>
         <p className="text-[#7a7670] text-base leading-7 max-w-lg mb-10">
           Parse resumes and job descriptions with LLMs, match them via semantic
@@ -68,7 +68,7 @@ export default function Home() {
             <>
               <Link
                 href="/resumes"
-                className="px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+                className="px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors"
               >
                 Upload Resume
               </Link>
@@ -83,7 +83,7 @@ export default function Home() {
             <>
               <Link
                 href="/register"
-                className="px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+                className="px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors"
               >
                 Get Started
               </Link>
@@ -106,7 +106,7 @@ export default function Home() {
               key={f.num}
               className="bg-white p-7 hover:bg-[#fafaf8] transition-colors"
             >
-              <div className="w-9 h-9 rounded-lg bg-[#f5f2ec] border border-[#d8d3c9] flex items-center justify-center font-mono text-xs text-[#1a3cff] font-medium mb-4">
+              <div className="w-9 h-9 rounded-lg bg-[#f5f2ec] border border-[#d8d3c9] flex items-center justify-center font-mono text-xs text-[#1F6B3A] font-medium mb-4">
                 {f.num}
               </div>
               <h3 className="text-sm font-semibold mb-2">{f.title}</h3>

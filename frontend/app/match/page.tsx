@@ -128,7 +128,7 @@ function MatchContent() {
                   onClick={() => setSelectedJD(jd.id)}
                   className={`w-full text-left px-4 py-3 rounded-lg border transition-colors text-sm ${
                     selectedJD === jd.id
-                      ? "border-[#1a3cff] bg-blue-50/50"
+                      ? "border-[#1F6B3A] bg-green-50/50"
                       : "border-[#d8d3c9] hover:bg-[#fafaf8]"
                   }`}
                 >
@@ -156,7 +156,7 @@ function MatchContent() {
             {resumes.length > 0 && (
               <button
                 onClick={selectAll}
-                className="text-xs text-[#1a3cff] hover:underline"
+                className="text-xs text-[#1F6B3A] hover:underline"
               >
                 {selectedResumes.size === resumes.length
                   ? "Deselect all"
@@ -176,14 +176,14 @@ function MatchContent() {
                   onClick={() => toggleResume(r.id)}
                   className={`w-full text-left px-4 py-3 rounded-lg border transition-colors text-sm flex items-center gap-3 ${
                     selectedResumes.has(r.id)
-                      ? "border-[#1a3cff] bg-blue-50/50"
+                      ? "border-[#1F6B3A] bg-green-50/50"
                       : "border-[#d8d3c9] hover:bg-[#fafaf8]"
                   }`}
                 >
                   <div
                     className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
                       selectedResumes.has(r.id)
-                        ? "border-[#1a3cff] bg-[#1a3cff]"
+                        ? "border-[#1F6B3A] bg-[#1F6B3A]"
                         : "border-[#d8d3c9]"
                     }`}
                   >
@@ -219,7 +219,7 @@ function MatchContent() {
         <button
           onClick={handleMatch}
           disabled={!selectedJD || selectedResumes.size === 0 || matching}
-          className="px-8 py-3 bg-[#1a3cff] text-white text-sm font-medium rounded-xl hover:bg-[#1530cc] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-8 py-3 bg-[#1F6B3A] text-white text-sm font-medium rounded-xl hover:bg-[#15522B] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {matching
             ? `Matching ${selectedResumes.size} resume${selectedResumes.size > 1 ? "s" : ""}...`
@@ -228,7 +228,7 @@ function MatchContent() {
       </div>
 
       {matching && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm text-center">
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm text-center">
           Running similarity search, LLM reranking, and skill gap analysis...
         </div>
       )}

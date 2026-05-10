@@ -60,7 +60,7 @@ function ResumeDetails({ resume: r }: { resume: Resume }) {
           {r.skills.map((s, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-green-50 text-green-800 border-green-200"
             >
               {s.skill}
               {s.years_exp != null && s.years_exp > 0 && (
@@ -187,7 +187,7 @@ function ResumesContent() {
           </h1>
         </div>
         <label
-          className={`px-5 py-2.5 bg-[#1a3cff] text-white text-sm font-medium rounded-lg cursor-pointer hover:bg-[#1530cc] transition-colors ${
+          className={`px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg cursor-pointer hover:bg-[#15522B] transition-colors ${
             uploading ? "opacity-60 pointer-events-none" : ""
           }`}
         >
@@ -246,7 +246,7 @@ function ResumesContent() {
               </button>
               <button
                 onClick={handleBatchUpload}
-                className="px-5 py-2 bg-[#1a3cff] text-white text-sm font-medium rounded-lg hover:bg-[#1530cc] transition-colors"
+                className="px-5 py-2 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors"
               >
                 Upload All
               </button>
@@ -262,7 +262,7 @@ function ResumesContent() {
       )}
 
       {uploading && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm">
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm">
           Uploading and parsing resume(s) with Claude... This may take a moment.
         </div>
       )}
@@ -289,7 +289,7 @@ function ResumesContent() {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-[#f5f2ec] border border-[#d8d3c9] flex items-center justify-center">
-                    <span className="text-xs font-mono text-[#1a3cff]">
+                    <span className="text-xs font-mono text-[#1F6B3A]">
                       PDF
                     </span>
                   </div>
@@ -303,7 +303,7 @@ function ResumesContent() {
                 </div>
                 <div className="flex items-center gap-3">
                   {r.overall_confidence != null && (
-                    <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-blue-50 text-[#1a3cff]">
+                    <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-green-50 text-[#1F6B3A]">
                       {Math.round(r.overall_confidence * 100)}% confidence
                     </span>
                   )}
