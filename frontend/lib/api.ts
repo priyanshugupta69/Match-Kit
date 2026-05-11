@@ -187,6 +187,8 @@ export interface BatchMatchResponse {
 export interface MatchHistoryItem extends MatchResult {
   resume_file_name: string | null;
   resume_candidate_name: string | null;
+  resume_email: string | null;
+  resume_phone: string | null;
   jd_title: string | null;
   jd_company: string | null;
 }
@@ -205,6 +207,14 @@ export interface BatchUploadResult {
   failed: { file_name: string; error: string }[];
 }
 
+export interface ResumeListResponse {
+  items: Resume[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
 // --- Resumes ---
 export async function uploadResumes(files: File[]): Promise<BatchUploadResult> {
   const form = new FormData();
@@ -217,8 +227,17 @@ export async function uploadResumes(files: File[]): Promise<BatchUploadResult> {
   });
 }
 
-export async function listResumes(): Promise<Resume[]> {
-  return request<Resume[]>("/api/resumes/");
+export async function listResumes(params?: {
+  page?: number;
+  page_size?: number;
+  q?: string;
+}): Promise<ResumeListResponse> {
+  const search = new URLSearchParams();
+  if (params?.page != null) search.set("page", String(params.page));
+  if (params?.page_size != null) search.set("page_size", String(params.page_size));
+  if (params?.q) search.set("q", params.q);
+  const qs = search.toString();
+  return request<ResumeListResponse>(`/api/resumes/${qs ? `?${qs}` : ""}`);
 }
 
 export async function getResume(id: string): Promise<Resume> {

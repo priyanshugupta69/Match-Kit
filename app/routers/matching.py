@@ -187,6 +187,8 @@ def _build_history_item(mr: MatchResult) -> MatchHistoryItem:
 
     gaps: list[SkillGap] = []
     candidate_name: str | None = None
+    candidate_email: str | None = None
+    candidate_phone: str | None = None
     if resume is not None and jd is not None:
         resume_skill_names = [s.skill for s in (resume.skills or [])]
         jd_parsed = jd.parsed_data or {}
@@ -199,6 +201,12 @@ def _build_history_item(mr: MatchResult) -> MatchHistoryItem:
             name_val = parsed_resume.get("name")
             if isinstance(name_val, str) and name_val.strip():
                 candidate_name = name_val
+            email_val = parsed_resume.get("email")
+            if isinstance(email_val, str) and email_val.strip():
+                candidate_email = email_val.strip()
+            phone_val = parsed_resume.get("phone")
+            if isinstance(phone_val, str) and phone_val.strip():
+                candidate_phone = phone_val.strip()
 
     base_data = base.model_dump()
     base_data["skill_gaps"] = gaps
@@ -206,6 +214,8 @@ def _build_history_item(mr: MatchResult) -> MatchHistoryItem:
         **base_data,
         resume_file_name=resume.file_name if resume else None,
         resume_candidate_name=candidate_name,
+        resume_email=candidate_email,
+        resume_phone=candidate_phone,
         jd_title=jd.title if jd else None,
         jd_company=jd.company if jd else None,
     )

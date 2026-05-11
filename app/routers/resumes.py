@@ -4,15 +4,15 @@ import time
 import uuid
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from sqlalchemy import select, update
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import async_session, get_db
 from app.dependencies import get_current_user
 from app.models import Resume, ResumeSkill, User
-from app.schemas import BatchUploadResult, ResumeOut, SkillExtracted
+from app.schemas import BatchUploadResult, ResumeListResponse, ResumeOut, SkillExtracted
 from app.services.background import LLM_SEMAPHORE, spawn_background
 from app.services.embeddings import generate_embedding
 from app.services.file_processor import extract_text
@@ -120,11 +120,47 @@ async def upload_batch(
     return BatchUploadResult(successful=successful, failed=failed)
 
 
-@router.get("/", response_model=list[ResumeOut])
-async def list_resumes(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    result = await db.execute(select(Resume).options(selectinload(Resume.skills)).where(Resume.user_id == user.id).order_by(Resume.uploaded_at.desc()))
+@router.get("/", response_model=ResumeListResponse)
+async def list_resumes(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=500),
+    q: str | None = Query(None, description="Search across file name, candidate name, and skills"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    base = select(Resume).where(Resume.user_id == user.id)
+
+    if q and q.strip():
+        like = f"%{q.strip().lower()}%"
+        skill_match = (
+            select(ResumeSkill.id)
+            .where(
+                ResumeSkill.resume_id == Resume.id,
+                func.lower(ResumeSkill.skill).like(like),
+            )
+            .exists()
+        )
+        base = base.where(
+            or_(
+                func.lower(Resume.file_name).like(like),
+                func.lower(Resume.parsed_data["name"].astext).like(like),
+                skill_match,
+            )
+        )
+
+    total_result = await db.execute(select(func.count()).select_from(base.subquery()))
+    total = total_result.scalar() or 0
+
+    items_q = (
+        base.options(selectinload(Resume.skills))
+        .order_by(Resume.uploaded_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    result = await db.execute(items_q)
     resumes = result.scalars().all()
-    return [
+
+    items = [
         ResumeOut(
             id=r.id,
             file_name=r.file_name,
@@ -135,6 +171,14 @@ async def list_resumes(db: AsyncSession = Depends(get_db), user: User = Depends(
         )
         for r in resumes
     ]
+
+    return ResumeListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        has_more=(page * page_size) < total,
+    )
 
 
 @router.get("/{resume_id}", response_model=ResumeOut)

@@ -19,6 +19,7 @@ import { ScoreRing } from "@/components/score-ring";
 import { SkillBadge } from "@/components/skill-badge";
 import { AuthGuard } from "@/components/auth-guard";
 import { ParsingProgress } from "@/components/parsing-progress";
+import { ContactIcons } from "@/components/contact-icons";
 
 export default function MatchPage() {
   return (
@@ -76,11 +77,11 @@ function MatchContent() {
     setError(null);
     try {
       const [r, j, s] = await Promise.all([
-        listResumes(),
+        listResumes({ page_size: 500 }),
         listJDs(),
         getMatchHistorySummary(),
       ]);
-      setResumes(r);
+      setResumes(r.items);
       setJds(j);
       setSummary(s);
     } catch (e: unknown) {
@@ -490,23 +491,29 @@ function GroupCard({
 
                   return (
                     <li key={it.id}>
-                      <button
-                        onClick={() => onToggleItem(it.id)}
-                        className="w-full px-5 py-3 flex items-center gap-4 hover:bg-[#fafaf8] transition-colors text-left"
-                      >
-                        <span className="font-mono text-xs text-[#d8d3c9] w-6 shrink-0">
-                          #{idx + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">
-                            {candidate}
-                          </p>
-                          <p className="text-[11px] text-[#7a7670] font-mono">
-                            {it.skills_matched.length} matched ·{" "}
-                            {it.skills_missing.length} missing ·{" "}
-                            {formatRelative(it.created_at)}
-                          </p>
-                        </div>
+                      <div className="w-full px-5 py-3 flex items-center gap-3 hover:bg-[#fafaf8] transition-colors">
+                        <button
+                          onClick={() => onToggleItem(it.id)}
+                          className="flex items-center gap-4 flex-1 min-w-0 text-left"
+                        >
+                          <span className="font-mono text-xs text-[#d8d3c9] w-6 shrink-0">
+                            #{idx + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">
+                              {candidate}
+                            </p>
+                            <p className="text-[11px] text-[#7a7670] font-mono">
+                              {it.skills_matched.length} matched ·{" "}
+                              {it.skills_missing.length} missing ·{" "}
+                              {formatRelative(it.created_at)}
+                            </p>
+                          </div>
+                        </button>
+                        <ContactIcons
+                          email={it.resume_email}
+                          phone={it.resume_phone}
+                        />
                         {finalPct != null && (
                           <span
                             className={`font-mono text-xs px-2.5 py-1 rounded-full border ${scoreColor}`}
@@ -514,22 +521,28 @@ function GroupCard({
                             {finalPct}%
                           </span>
                         )}
-                        <svg
-                          className={`w-4 h-4 text-[#7a7670] transition-transform shrink-0 ${
-                            isOpen ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
+                        <button
+                          onClick={() => onToggleItem(it.id)}
+                          aria-label={isOpen ? "Collapse" : "Expand"}
+                          className="p-1 text-[#7a7670] hover:text-[#2c2925]"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            className={`w-4 h-4 transition-transform shrink-0 ${
+                              isOpen ? "rotate-180" : ""
+                            }`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                       {isOpen && (
                         <div className="px-5 pb-5 pt-1 bg-[#fafaf8]">
                           <MatchCard

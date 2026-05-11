@@ -15,6 +15,7 @@ class SkillExtracted(BaseModel):
 class ResumeParseResult(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
+    phone: Optional[str] = None
     seniority: Optional[str] = None
     years_of_experience: Optional[int] = None
     skills: List[SkillExtracted] = []
@@ -32,6 +33,14 @@ class ResumeOut(BaseModel):
     skills: List[SkillExtracted] = []
 
     model_config = {"from_attributes": True}
+
+
+class ResumeListResponse(BaseModel):
+    items: List[ResumeOut]
+    total: int
+    page: int
+    page_size: int
+    has_more: bool
 
 
 # --- JD schemas ---
@@ -92,6 +101,8 @@ class MatchResultOut(BaseModel):
 class MatchHistoryItem(MatchResultOut):
     resume_file_name: Optional[str] = None
     resume_candidate_name: Optional[str] = None
+    resume_email: Optional[str] = None
+    resume_phone: Optional[str] = None
     jd_title: Optional[str] = None
     jd_company: Optional[str] = None
 

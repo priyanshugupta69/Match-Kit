@@ -13,6 +13,7 @@ Return ONLY valid JSON matching this exact schema:
 {
   "name": "string or null",
   "email": "string or null",
+  "phone": "string or null — keep the original formatting (including country code if present)",
   "seniority": "junior | mid | senior | lead | staff | null",
   "years_of_experience": "integer or null",
   "skills": [{"skill": "string", "years_exp": "integer or null", "confidence": 0.0-1.0}],
