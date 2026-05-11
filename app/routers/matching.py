@@ -270,8 +270,7 @@ async def get_history_summary(
             JobDescription.company,
             func.count(MatchResult.id).label("match_count"),
             func.max(MatchResult.created_at).label("latest"),
-            func.max(MatchResult.rerank_score).label("best_rerank"),
-            func.max(MatchResult.similarity_score).label("best_similarity"),
+            func.max(_final_score_sql()).label("best_final"),
         )
         .join(JobDescription, MatchResult.jd_id == JobDescription.id)
         .where(MatchResult.user_id == user.id)
@@ -281,7 +280,6 @@ async def get_history_summary(
     rows = (await db.execute(stmt)).all()
     out: list[MatchRoleSummary] = []
     for row in rows:
-        best = row.best_rerank if row.best_rerank is not None else row.best_similarity
         out.append(
             MatchRoleSummary(
                 jd_id=row.jd_id,
@@ -289,7 +287,7 @@ async def get_history_summary(
                 jd_company=row.company,
                 match_count=row.match_count,
                 latest_match_at=row.latest,
-                best_score=best,
+                best_score=row.best_final,
             )
         )
     return out
