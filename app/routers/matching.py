@@ -5,7 +5,7 @@ import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -57,6 +57,19 @@ async def _match_single(
     )
     db.add(match_result)
     return match_result
+
+
+def _final_score_sql():
+    # Mirrors _build_result_out's final_score formula so DB ORDER BY matches
+    # the value rendered in the UI. Keep these two in sync.
+    sim = func.coalesce(MatchResult.similarity_score, 0.0)
+    return case(
+        (
+            and_(MatchResult.rerank_score.isnot(None), MatchResult.rerank_score != 0),
+            sim * 0.2 + MatchResult.rerank_score * 0.8,
+        ),
+        else_=sim,
+    )
 
 
 def _build_result_out(mr: MatchResult, gaps: list[SkillGap] | None = None) -> MatchResultOut:
@@ -173,10 +186,11 @@ async def match_batch(body: BatchMatchRequest, db: AsyncSession = Depends(get_db
 async def get_match_results(jd_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """Get all match results for a JD, ranked by final score."""
     result = await db.execute(
-        select(MatchResult).where(MatchResult.jd_id == jd_id, MatchResult.user_id == user.id).order_by(MatchResult.rerank_score.desc().nullslast())
+        select(MatchResult)
+        .where(MatchResult.jd_id == jd_id, MatchResult.user_id == user.id)
+        .order_by(_final_score_sql().desc().nullslast())
     )
-    results = result.scalars().all()
-    return [_build_result_out(mr) for mr in results]
+    return [_build_result_out(mr) for mr in result.scalars().all()]
 
 
 def _build_history_item(mr: MatchResult) -> MatchHistoryItem:
@@ -287,7 +301,7 @@ async def get_history_for_role(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Return every match in a single role, ranked by score. Lazy-loaded by the UI."""
+    """Return every match in a single role, ranked by final score. Lazy-loaded by the UI."""
     result = await db.execute(
         select(MatchResult)
         .options(
@@ -295,6 +309,6 @@ async def get_history_for_role(
             selectinload(MatchResult.job_description),
         )
         .where(MatchResult.user_id == user.id, MatchResult.jd_id == jd_id)
-        .order_by(MatchResult.rerank_score.desc().nullslast())
+        .order_by(_final_score_sql().desc().nullslast())
     )
     return [_build_history_item(mr) for mr in result.scalars().all()]
