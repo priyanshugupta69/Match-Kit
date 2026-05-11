@@ -6,8 +6,7 @@ import { useEffect, useState } from "react";
 import { getStoredUser, isLoggedIn, logout, type AuthUser } from "@/lib/api";
 
 const protectedLinks = [
-  { href: "/resumes", label: "Resumes" },
-  { href: "/job-descriptions", label: "Roles" },
+  { href: "/resumes", label: "Candidates" },
   { href: "/match", label: "Match" },
 ];
 

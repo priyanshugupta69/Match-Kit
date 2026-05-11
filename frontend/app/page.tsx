@@ -54,13 +54,12 @@ export default function Home() {
           AI-Powered Resume Matching
         </p>
         <h1 className="text-5xl font-semibold tracking-tight leading-[1.1] mb-6">
-          Find the right
+          Match <span className="text-[#8BC53F] italic">smarter</span>
           <br />
-          <span className="text-[#8BC53F] italic">candidate</span>, instantly.
+          Hire faster
         </h1>
         <p className="text-[#7a7670] text-base leading-7 max-w-lg mb-10">
-          Upload resumes, paste a role description, and get ranked candidates
-          with a clear skill-gap breakdown — no spreadsheets, no manual triage.
+          Score candidates against any role in seconds — no manual triage.
         </p>
         <div className="flex gap-4">
           {mounted && loggedIn ? (

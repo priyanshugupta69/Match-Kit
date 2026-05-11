@@ -125,7 +125,7 @@ function ResumesContent() {
       setError(
         e instanceof Error
           ? e.message
-          : "We couldn't load your resumes. Please refresh."
+          : "We couldn't load your candidates. Please refresh."
       );
     } finally {
       setLoading(false);
@@ -183,10 +183,10 @@ function ResumesContent() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#7a7670] mb-2">
-            Resumes
+            Candidates
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Candidate Resumes
+            Candidates
           </h1>
         </div>
         <label
@@ -272,12 +272,12 @@ function ResumesContent() {
       )}
 
       {loading ? (
-        <div className="text-center py-20 text-[#7a7670]">Loading resumes…</div>
+        <div className="text-center py-20 text-[#7a7670]">Loading candidates…</div>
       ) : resumes.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-[#d8d3c9] rounded-2xl">
-          <p className="text-[#7a7670] mb-2">No resumes yet</p>
+          <p className="text-[#7a7670] mb-2">No candidates yet</p>
           <p className="text-sm text-[#7a7670]/60">
-            Upload a resume to get started.
+            Upload a resume to add your first candidate.
           </p>
         </div>
       ) : (
