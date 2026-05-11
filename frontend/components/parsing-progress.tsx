@@ -10,8 +10,8 @@ type Stage = {
 
 const RESUME_STAGES: Stage[] = [
   {
-    label: "Extracting document text",
-    hint: "Reading the PDF/DOCX structure",
+    label: "Reading the resume",
+    hint: "Extracting the document content",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
         <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" strokeLinejoin="round" />
@@ -21,8 +21,8 @@ const RESUME_STAGES: Stage[] = [
     ),
   },
   {
-    label: "Sending to Claude",
-    hint: "Preparing context window",
+    label: "Analyzing with AI",
+    hint: "Reviewing skills, experience, and history",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
         <path d="M4 12l16-8-6 16-2-7-8-1z" strokeLinejoin="round" />
@@ -30,7 +30,7 @@ const RESUME_STAGES: Stage[] = [
     ),
   },
   {
-    label: "Identifying skills & expertise",
+    label: "Identifying skills",
     hint: "Mapping technologies and proficiency",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -39,7 +39,7 @@ const RESUME_STAGES: Stage[] = [
     ),
   },
   {
-    label: "Analyzing experience",
+    label: "Understanding experience",
     hint: "Inferring seniority and roles",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -50,8 +50,8 @@ const RESUME_STAGES: Stage[] = [
     ),
   },
   {
-    label: "Scoring confidence",
-    hint: "Calibrating final results",
+    label: "Finalizing",
+    hint: "Wrapping up",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
         <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -62,8 +62,8 @@ const RESUME_STAGES: Stage[] = [
 
 const JD_STAGES: Stage[] = [
   {
-    label: "Reading job description",
-    hint: "Tokenizing requirements",
+    label: "Reading the role",
+    hint: "Reviewing requirements",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
         <path d="M4 5h16M4 10h16M4 15h10M4 20h6" strokeLinecap="round" />
@@ -71,8 +71,8 @@ const JD_STAGES: Stage[] = [
     ),
   },
   {
-    label: "Sending to Claude",
-    hint: "Preparing context window",
+    label: "Analyzing with AI",
+    hint: "Understanding the role",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
         <path d="M4 12l16-8-6 16-2-7-8-1z" strokeLinejoin="round" />
@@ -89,8 +89,8 @@ const JD_STAGES: Stage[] = [
     ),
   },
   {
-    label: "Detecting seniority signals",
-    hint: "Inferring level from language",
+    label: "Detecting seniority",
+    hint: "Reading the level the role expects",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
         <path d="M3 20h4V10H3zM10 20h4V4h-4zM17 20h4v-7h-4z" strokeLinejoin="round" />
@@ -98,8 +98,8 @@ const JD_STAGES: Stage[] = [
     ),
   },
   {
-    label: "Structuring responsibilities",
-    hint: "Building the parsed JD",
+    label: "Finalizing",
+    hint: "Wrapping up",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
         <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -171,7 +171,7 @@ export function ParsingProgress({ variant, files }: ParsingProgressProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#7a7670]">
-              {variant === "resume" ? "Parsing resume" : "Parsing job description"}
+              {variant === "resume" ? "Analyzing resume" : "Analyzing role"}
               {files && files.length > 1 ? ` · ${files.length} files` : ""}
             </p>
             <span className="font-mono text-[10px] text-[#7a7670] tabular-nums">

@@ -18,7 +18,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!checked) {
     return (
-      <div className="text-center py-20 text-[#7a7670]">Loading...</div>
+      <div className="text-center py-20 text-[#7a7670]">Loading…</div>
     );
   }
 

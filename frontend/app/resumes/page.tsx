@@ -122,7 +122,11 @@ function ResumesContent() {
     try {
       setResumes(await listResumes());
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "We couldn't load your resumes. Please refresh."
+      );
     } finally {
       setLoading(false);
     }
@@ -163,7 +167,11 @@ function ResumesContent() {
         setError(`Some files failed: ${failedNames}`);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Upload didn't go through. Please try again."
+      );
     } finally {
       setUploading(false);
       setSelectedFiles([]);
@@ -178,7 +186,7 @@ function ResumesContent() {
             Resumes
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Uploaded Resumes
+            Candidate Resumes
           </h1>
         </div>
         <label
@@ -186,7 +194,7 @@ function ResumesContent() {
             uploading ? "opacity-60 pointer-events-none" : ""
           }`}
         >
-          {uploading ? "Processing..." : "Upload Resumes"}
+          {uploading ? "Uploading…" : "Upload Resumes"}
           <input
             ref={fileRef}
             type="file"
@@ -264,12 +272,12 @@ function ResumesContent() {
       )}
 
       {loading ? (
-        <div className="text-center py-20 text-[#7a7670]">Loading...</div>
+        <div className="text-center py-20 text-[#7a7670]">Loading resumes…</div>
       ) : resumes.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-[#d8d3c9] rounded-2xl">
-          <p className="text-[#7a7670] mb-2">No resumes uploaded yet</p>
+          <p className="text-[#7a7670] mb-2">No resumes yet</p>
           <p className="text-sm text-[#7a7670]/60">
-            Upload a PDF or DOCX to get started
+            Upload a resume to get started.
           </p>
         </div>
       ) : (
@@ -300,7 +308,7 @@ function ResumesContent() {
                 <div className="flex items-center gap-3">
                   {r.overall_confidence != null && (
                     <span className="font-mono text-xs px-2.5 py-1 rounded-full bg-green-50 text-[#1F6B3A]">
-                      {Math.round(r.overall_confidence * 100)}% confidence
+                      {Math.round(r.overall_confidence * 100)}% extracted
                     </span>
                   )}
                   <svg

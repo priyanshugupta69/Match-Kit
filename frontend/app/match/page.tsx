@@ -58,7 +58,11 @@ function MatchContent() {
     try {
       setHistory(await getMatchHistory());
     } catch (e: unknown) {
-      setHistoryError(e instanceof Error ? e.message : "Failed to load history");
+      setHistoryError(
+        e instanceof Error
+          ? e.message
+          : "We couldn't load your match history."
+      );
     } finally {
       setHistoryLoading(false);
     }
@@ -120,7 +124,9 @@ function MatchContent() {
   };
 
   if (loading) {
-    return <div className="text-center py-20 text-[#7a7670]">Loading...</div>;
+    return (
+      <div className="text-center py-20 text-[#7a7670]">Loading…</div>
+    );
   }
 
   return (
@@ -129,7 +135,9 @@ function MatchContent() {
         <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#7a7670] mb-2">
           Matching
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Match Engine</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Match Candidates
+        </h1>
       </div>
 
       <div className="mb-8 flex items-center gap-1 border-b border-[#d8d3c9]">
@@ -252,10 +260,12 @@ function NewMatchView({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-white border border-[#d8d3c9] rounded-xl p-5">
           <p className="text-[10px] font-mono uppercase text-[#7a7670] mb-3">
-            1. Select Job Description
+            1. Select a Role
           </p>
           {jds.length === 0 ? (
-            <p className="text-sm text-[#7a7670]">No JDs found. Add one first.</p>
+            <p className="text-sm text-[#7a7670]">
+              No roles yet. Add one to get started.
+            </p>
           ) : (
             <div className="space-y-2">
               {jds.map((jd) => (
@@ -284,7 +294,7 @@ function NewMatchView({
         <div className="bg-white border border-[#d8d3c9] rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-mono uppercase text-[#7a7670]">
-              2. Select Resumes
+              2. Select Candidates
             </p>
             {resumes.length > 0 && (
               <button
@@ -299,7 +309,7 @@ function NewMatchView({
           </div>
           {resumes.length === 0 ? (
             <p className="text-sm text-[#7a7670]">
-              No resumes found. Upload one first.
+              No resumes yet. Upload one to get started.
             </p>
           ) : (
             <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -354,25 +364,25 @@ function NewMatchView({
           className="px-8 py-3 bg-[#1F6B3A] text-white text-sm font-medium rounded-xl hover:bg-[#15522B] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {matching
-            ? `Matching ${selectedResumes.size} resume${
+            ? `Matching ${selectedResumes.size} candidate${
                 selectedResumes.size > 1 ? "s" : ""
-              }...`
-            : `Match ${selectedResumes.size} resume${
+              }…`
+            : `Match ${selectedResumes.size} candidate${
                 selectedResumes.size !== 1 ? "s" : ""
-              } against JD`}
+              } against this role`}
         </button>
       </div>
 
       {matching && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm text-center">
-          Running similarity search, LLM reranking, and skill gap analysis...
+          Scoring candidates and analyzing skill fit…
         </div>
       )}
 
       {results.length > 0 && (
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#7a7670] mb-4">
-            Match Results — Ranked by Score
+            Ranked Candidates
           </p>
           <div className="space-y-4">
             {results.map((r, rank) => (
@@ -412,21 +422,13 @@ function MatchCard({
           </div>
         )}
 
-        <div className="flex gap-4">
-          {result.final_score != null && (
-            <ScoreRing score={result.final_score} size={72} label="final" />
-          )}
-          {result.similarity_score != null && (
-            <ScoreRing
-              score={result.similarity_score}
-              size={56}
-              label="similarity"
-            />
-          )}
-          {result.rerank_score != null && (
-            <ScoreRing score={result.rerank_score} size={56} label="rerank" />
-          )}
-        </div>
+        {result.final_score != null && (
+          <ScoreRing
+            score={result.final_score}
+            size={88}
+            label="Match Score"
+          />
+        )}
 
         <div className="flex-1 min-w-0">
           <p className="text-base font-semibold mb-1">{title}</p>
@@ -524,7 +526,7 @@ function HistoryView({
       } else {
         map.set(it.jd_id, {
           jdId: it.jd_id,
-          jdTitle: it.jd_title || "Untitled JD",
+          jdTitle: it.jd_title || "Untitled role",
           jdCompany: it.jd_company,
           items: [it],
           latest: it.created_at,
@@ -552,7 +554,7 @@ function HistoryView({
 
   if (loading) {
     return (
-      <div className="text-center py-20 text-[#7a7670]">Loading history...</div>
+      <div className="text-center py-20 text-[#7a7670]">Loading history…</div>
     );
   }
 
@@ -567,9 +569,10 @@ function HistoryView({
   if (items.length === 0) {
     return (
       <div className="text-center py-20 border border-dashed border-[#d8d3c9] rounded-2xl">
-        <p className="text-[#7a7670] mb-2">No matches run yet</p>
+        <p className="text-[#7a7670] mb-2">No matches yet</p>
         <p className="text-sm text-[#7a7670]/60">
-          Run a match from the New Match tab — results are stored automatically.
+          Your past matches will appear here. Run your first match from the New
+          Match tab.
         </p>
       </div>
     );
@@ -581,13 +584,13 @@ function HistoryView({
     <div>
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
         <p className="text-xs font-mono text-[#7a7670]">
-          {totalShown} match{totalShown !== 1 ? "es" : ""} across {groups.length} JD
+          {totalShown} match{totalShown !== 1 ? "es" : ""} across {groups.length} role
           {groups.length !== 1 ? "s" : ""}
         </p>
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter by JD, company, or candidate..."
+          placeholder="Filter by role, company, or candidate…"
           className="px-3 py-1.5 text-sm bg-white border border-[#d8d3c9] rounded-lg focus:outline-none focus:border-[#1F6B3A] w-72 max-w-full"
         />
       </div>
@@ -601,7 +604,7 @@ function HistoryView({
             <div className="px-5 py-4 border-b border-[#f0ede7] flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[10px] font-mono uppercase text-[#7a7670] mb-1">
-                  {g.jdCompany ? g.jdCompany : "JD"}
+                  {g.jdCompany ? g.jdCompany : "Role"}
                 </p>
                 <p className="text-base font-semibold truncate">{g.jdTitle}</p>
               </div>

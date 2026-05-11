@@ -7,33 +7,33 @@ import { useEffect, useState } from "react";
 const features = [
   {
     num: "01",
-    title: "LLM-based extraction",
-    desc: "Upload any PDF or DOCX. Claude parses it into typed JSON — skills, experience, education — with confidence scores.",
+    title: "Smart resume parsing",
+    desc: "Drop in any resume. We pull out skills, experience, and seniority automatically, with a confidence read on each.",
   },
   {
     num: "02",
-    title: "JD parser",
-    desc: "Paste a job description. Same pipeline surfaces required vs nice-to-have skills and role seniority.",
+    title: "Role intake",
+    desc: "Paste a job description. We surface must-have vs. nice-to-have skills and the seniority level it expects.",
   },
   {
     num: "03",
-    title: "Semantic matching",
-    desc: "Embeddings stored in pgvector. Cosine similarity gives an initial match score.",
+    title: "Instant matching",
+    desc: "Every resume is scored against the role in seconds. No manual keyword tagging.",
   },
   {
     num: "04",
-    title: "LLM reranking",
-    desc: "Claude refines raw similarity with a nuanced relevance score — reasoning-based cross-encoding.",
+    title: "AI-refined ranking",
+    desc: "Beyond keyword overlap — we re-score candidates against the full context of the role for an accurate fit.",
   },
   {
     num: "05",
-    title: "Skill gap analysis",
-    desc: "Every match includes a has/missing skill diff — immediately actionable.",
+    title: "Skill-gap analysis",
+    desc: "Every match shows exactly which required skills the candidate has and which are missing. Recruiter-ready feedback.",
   },
   {
     num: "06",
-    title: "Batch processing",
-    desc: "Upload multiple resumes against one JD. Async workers return a ranked leaderboard.",
+    title: "Batch ranking",
+    desc: "Upload a stack of resumes against a single role and get a ranked shortlist.",
   },
 ];
 
@@ -54,14 +54,13 @@ export default function Home() {
           AI-Powered Resume Matching
         </p>
         <h1 className="text-5xl font-semibold tracking-tight leading-[1.1] mb-6">
-          Resume–JD
+          Find the right
           <br />
-          <span className="text-[#8BC53F] italic">Matching</span> Engine
+          <span className="text-[#8BC53F] italic">candidate</span>, instantly.
         </h1>
         <p className="text-[#7a7670] text-base leading-7 max-w-lg mb-10">
-          Parse resumes and job descriptions with LLMs, match them via semantic
-          embeddings and cross-encoder reranking, and get ranked results with
-          skill gap analysis.
+          Upload resumes, paste a role description, and get ranked candidates
+          with a clear skill-gap breakdown — no spreadsheets, no manual triage.
         </p>
         <div className="flex gap-4">
           {mounted && loggedIn ? (
@@ -76,7 +75,7 @@ export default function Home() {
                 href="/job-descriptions"
                 className="px-5 py-2.5 border border-[#d8d3c9] text-sm font-medium rounded-lg hover:bg-white transition-colors"
               >
-                Add Job Description
+                Add Role
               </Link>
             </>
           ) : mounted ? (

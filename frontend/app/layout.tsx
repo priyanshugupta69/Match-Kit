@@ -3,9 +3,9 @@ import { Nav } from "@/components/nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MatchKit — Resume-JD Matching Engine",
+  title: "ResuMatch — AI-powered candidate matching",
   description:
-    "LLM-powered resume parsing, semantic matching, and skill gap analysis",
+    "Score resumes against open roles, surface skill gaps, and rank candidates instantly.",
 };
 
 export default function RootLayout({

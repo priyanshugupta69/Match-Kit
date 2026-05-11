@@ -103,7 +103,9 @@ function JDContent() {
     try {
       setJds(await listJDs());
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(
+        e instanceof Error ? e.message : "We couldn't load your roles."
+      );
     } finally {
       setLoading(false);
     }
@@ -128,7 +130,9 @@ function JDContent() {
       setRawText("");
       setShowForm(false);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create");
+      setError(
+        e instanceof Error ? e.message : "We couldn't save this role."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -139,17 +143,17 @@ function JDContent() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#7a7670] mb-2">
-            Job Descriptions
+            Roles
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            Job Descriptions
+            Open Roles
           </h1>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors"
         >
-          {showForm ? "Cancel" : "Add JD"}
+          {showForm ? "Cancel" : "Add Role"}
         </button>
       </div>
 
@@ -175,7 +179,7 @@ function JDContent() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-mono uppercase text-[#7a7670] mb-1.5">
-                Job Title *
+                Role Title *
               </label>
               <input
                 value={title}
@@ -191,20 +195,20 @@ function JDContent() {
               <input
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
-                placeholder="Acme Inc"
+                placeholder=""
                 className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50"
               />
             </div>
           </div>
           <div>
             <label className="block text-[10px] font-mono uppercase text-[#7a7670] mb-1.5">
-              Job Description Text *
+              Role Description *
             </label>
             <textarea
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
               rows={8}
-              placeholder="Paste the full job description here..."
+              placeholder="Paste the role description here…"
               className="w-full px-3 py-2 border border-[#d8d3c9] rounded-lg text-sm focus:outline-none focus:border-[#1F6B3A] bg-[#f5f2ec]/50 resize-y"
             />
           </div>
@@ -213,18 +217,18 @@ function JDContent() {
             disabled={submitting || !title.trim() || !rawText.trim()}
             className="px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors disabled:opacity-50"
           >
-            {submitting ? "Parsing…" : "Create & Parse"}
+            {submitting ? "Analyzing…" : "Save Role"}
           </button>
         </form>
       )}
 
       {loading ? (
-        <div className="text-center py-20 text-[#7a7670]">Loading...</div>
+        <div className="text-center py-20 text-[#7a7670]">Loading roles…</div>
       ) : jds.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-[#d8d3c9] rounded-2xl">
-          <p className="text-[#7a7670] mb-2">No job descriptions yet</p>
+          <p className="text-[#7a7670] mb-2">No roles yet</p>
           <p className="text-sm text-[#7a7670]/60">
-            Add a JD to start matching
+            Add a role to start matching candidates.
           </p>
         </div>
       ) : (

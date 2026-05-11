@@ -87,7 +87,7 @@ function VerifyContent() {
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<div className="text-center py-20 text-[#7a7670]">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-20 text-[#7a7670]">Loading…</div>}>
       <VerifyContent />
     </Suspense>
   );

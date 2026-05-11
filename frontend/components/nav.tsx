@@ -7,7 +7,7 @@ import { getStoredUser, isLoggedIn, logout, type AuthUser } from "@/lib/api";
 
 const protectedLinks = [
   { href: "/resumes", label: "Resumes" },
-  { href: "/job-descriptions", label: "Job Descriptions" },
+  { href: "/job-descriptions", label: "Roles" },
   { href: "/match", label: "Match" },
 ];
 
@@ -31,8 +31,11 @@ export function Nav() {
   return (
     <nav className="sticky top-0 z-50 bg-[#f5f2ec] border-b border-[#d8d3c9]">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-        <Link href="/" className="font-mono text-sm font-medium tracking-tight">
-          resu<span className="text-[#1F6B3A]">match</span>
+        <Link
+          href="/"
+          className="font-mono text-sm font-medium tracking-tight text-[#0f0e0d]"
+        >
+          ResuMatch
         </Link>
 
         <div className="flex items-center gap-8">
