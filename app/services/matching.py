@@ -5,23 +5,52 @@ from app.config import settings
 from app.schemas import SkillGap
 from app.services.gemini_llm import generate_json_text
 
-RERANK_PROMPT = """You are a resume-JD matching evaluator. Score how well each resume matches the job description.
+RERANK_PROMPT = """You are a senior technical recruiter with 15+ years of experience hiring engineers across startups and large companies. Hiring managers trust your judgment because you are calibrated, fair, and strict where it matters: you reward demonstrated experience and you do not inflate scores for resume polish, prestigious employers, or skills that are merely listed without supporting evidence.
 
-Job Description:
+You will be given one job description and one or more candidate resumes. For each resume, decide how strong a match the candidate is for the role and assign a relevance score.
+
+## What to evaluate (in priority order)
+
+1. Required-skill coverage. Are the must-have skills from the JD demonstrated through real projects, roles, or accomplishments — not just listed in a skills section?
+2. Experience level and depth. Does the candidate's seniority, years of experience, and scope of ownership match what the role asks for?
+3. Domain and stack alignment. Has the candidate worked in similar technical environments, problem spaces, or industries?
+4. Recency and trajectory. Is the relevant experience recent and is the candidate's career trajectory consistent with the role's seniority?
+5. Nice-to-have skills. Treat these as bonuses. Reward presence; do not penalize absence.
+
+## Scoring rubric (0.0 to 1.0)
+
+- 0.90 - 1.00 — Exceptional fit. All required skills clearly demonstrated, experience level matches or exceeds, strong domain alignment. Shortlist immediately.
+- 0.75 - 0.89 — Strong fit. Most required skills present with hands-on evidence; minor gaps that can be closed quickly on the job. Worth a phone screen.
+- 0.55 - 0.74 — Possible fit. Some required skills present but with notable gaps in skills, depth, or domain. Borderline; only consider if the pipeline is thin.
+- 0.30 - 0.54 — Weak fit. Multiple required skills missing or only superficially mentioned. Adjacent background; would need significant ramp-up.
+- 0.10 - 0.29 — Poor fit. Most required skills missing, wrong experience level, or off-domain. Do not move forward.
+- 0.00 - 0.09 — No meaningful match.
+
+## Hard caps (apply strictly; these override the rubric above)
+
+- If more than half of the required skills from the JD are absent or only superficially mentioned in the resume, the score MUST NOT exceed 0.50.
+- If the candidate's experience level is materially below what the JD requires (for example, 2 years for a senior role asking 7+), the score MUST NOT exceed 0.55.
+- Do not give credit for a skill that appears only in a skills/keywords list with no supporting project, role, or accomplishment behind it.
+- Do not inflate scores based on adjacent-but-different technologies (e.g., a different web framework, a different cloud provider) unless the JD explicitly accepts equivalents.
+
+## Job Description
+
 {jd_text}
 
 ---
+
+## Candidate Resumes
 
 {resume_block}
 
 ---
 
-For each resume, return a JSON array with objects containing:
-- "index": the resume number (starting from 0)
-- "relevance_score": a float from 0.0 to 1.0 (1.0 = perfect match)
-- "reasoning": one sentence explaining the score
+For each resume, return one JSON object with:
+- "index": integer, the resume number (starting from 0)
+- "relevance_score": float in [0.0, 1.0], applying the rubric and hard caps above
+- "reasoning": one sentence naming the strongest match signals and the most important gaps that drove the score
 
-Return ONLY valid JSON array, no other text."""
+Return ONLY a valid JSON array. No prose, no markdown fences, no commentary."""
 
 
 async def rerank_candidates(

@@ -10,7 +10,7 @@
 
 ## Running the App
 1. Backend: `uvicorn app.main:app --reload` (port 8000, docs at `/docs`)
-2. Frontend: `cd frontend && npm run dev` (port 3000)
+2. Frontend: `cd frontend && npm run dev` (port from `frontend/.env`, default 3001)
 
 ## Key Commands
 - Run DB migrations: `alembic upgrade head`

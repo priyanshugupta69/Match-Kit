@@ -1,7 +1,11 @@
 import json
+import logging
+import time
 
 from app.schemas import JDParseResult, ResumeParseResult
 from app.services.gemini_llm import generate_json_text, fix_and_parse_json
+
+logger = logging.getLogger(__name__)
 
 RESUME_PROMPT = """You are a resume parser. Extract structured data from the following resume text.
 
@@ -13,7 +17,7 @@ Return ONLY valid JSON matching this exact schema:
   "years_of_experience": "integer or null",
   "skills": [{"skill": "string", "years_exp": "integer or null", "confidence": 0.0-1.0}],
   "education": [{"degree": "string", "institution": "string", "year": "integer or null"}],
-  "experience": [{"title": "string", "company": "string", "duration": "string", "description": "string"}],
+  "experience": [{"title": "string", "company": "string", "duration": "string"}],
   "overall_confidence": 0.0-1.0
 }
 
@@ -42,9 +46,12 @@ Job description text:
 
 
 async def parse_resume(text: str) -> ResumeParseResult:
-    raw = await generate_json_text(RESUME_PROMPT + text, max_output_tokens=8192)
+    start = time.perf_counter()
+    raw = await generate_json_text(RESUME_PROMPT + text, max_output_tokens=3072)
     data = fix_and_parse_json(raw)
-    return ResumeParseResult(**data)
+    result = ResumeParseResult(**data)
+    logger.info("parse_resume: %d chars -> %.2fs", len(text), time.perf_counter() - start)
+    return result
 
 
 async def parse_jd(text: str) -> JDParseResult:

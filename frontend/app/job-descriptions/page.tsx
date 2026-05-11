@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createJD, listJDs, type JobDescription } from "@/lib/api";
 import { AuthGuard } from "@/components/auth-guard";
+import { ParsingProgress } from "@/components/parsing-progress";
 
 function JDDetails({ jd }: { jd: JobDescription }) {
   const parsed = jd.parsed_data as Record<string, unknown> | null;
@@ -158,6 +159,13 @@ function JDContent() {
         </div>
       )}
 
+      {submitting && (
+        <ParsingProgress
+          variant="jd"
+          files={title.trim() ? [title.trim()] : undefined}
+        />
+      )}
+
       {/* Create form */}
       {showForm && (
         <form
@@ -205,7 +213,7 @@ function JDContent() {
             disabled={submitting || !title.trim() || !rawText.trim()}
             className="px-5 py-2.5 bg-[#1F6B3A] text-white text-sm font-medium rounded-lg hover:bg-[#15522B] transition-colors disabled:opacity-50"
           >
-            {submitting ? "Parsing with Claude..." : "Create & Parse"}
+            {submitting ? "Parsing…" : "Create & Parse"}
           </button>
         </form>
       )}

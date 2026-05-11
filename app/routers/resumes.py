@@ -1,9 +1,11 @@
 import asyncio
+import logging
+import time
 import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,60 +13,38 @@ from app.database import async_session, get_db
 from app.dependencies import get_current_user
 from app.models import Resume, ResumeSkill, User
 from app.schemas import BatchUploadResult, ResumeOut, SkillExtracted
+from app.services.background import LLM_SEMAPHORE, spawn_background
 from app.services.embeddings import generate_embedding
 from app.services.file_processor import extract_text
 from app.services.parser import parse_resume
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/resumes", tags=["resumes"])
 
 
-@router.post("/upload", response_model=ResumeOut)
-async def upload_resume(file: UploadFile, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    """Upload a PDF/DOCX resume → extract text → LLM parse → embed → store."""
-    file_bytes = await file.read()
-    raw_text = extract_text(file_bytes, file.filename or "resume.pdf")
-
-    if not raw_text.strip():
-        raise HTTPException(status_code=400, detail="Could not extract text from file")
-
-    # LLM extraction
-    parsed = await parse_resume(raw_text)
-
-    # Generate embedding
-    embedding = generate_embedding(raw_text)
-
-    # Store resume
-    resume = Resume(
-        user_id=user.id,
-        file_name=file.filename or "resume",
-        raw_text=raw_text,
-        parsed_data=parsed.model_dump(),
-        embedding=embedding,
-        overall_confidence=parsed.overall_confidence,
-    )
-    db.add(resume)
-    await db.flush()
-
-    # Store skills
-    for s in parsed.skills:
-        db.add(ResumeSkill(
-            resume_id=resume.id,
-            skill=s.skill,
-            years_exp=s.years_exp,
-            confidence=s.confidence,
-        ))
-
-    await db.commit()
-    await db.refresh(resume, ["skills"])
-
-    return ResumeOut(
-        id=resume.id,
-        file_name=resume.file_name,
-        parsed_data=resume.parsed_data,
-        overall_confidence=resume.overall_confidence,
-        uploaded_at=resume.uploaded_at,
-        skills=[SkillExtracted(skill=s.skill, years_exp=s.years_exp, confidence=s.confidence) for s in resume.skills],
-    )
+async def _finalize_resume(
+    resume_id: uuid.UUID,
+    raw_text: str,
+    skills: List[SkillExtracted],
+) -> None:
+    try:
+        async with LLM_SEMAPHORE:
+            embedding = generate_embedding(raw_text)
+        async with async_session() as db:
+            await db.execute(
+                update(Resume).where(Resume.id == resume_id).values(embedding=embedding)
+            )
+            for s in skills:
+                db.add(ResumeSkill(
+                    resume_id=resume_id,
+                    skill=s.skill,
+                    years_exp=s.years_exp,
+                    confidence=s.confidence,
+                ))
+            await db.commit()
+    except Exception:
+        logger.exception("Background finalize failed for resume %s", resume_id)
 
 
 @router.post("/upload-batch", response_model=BatchUploadResult)
@@ -72,58 +52,59 @@ async def upload_batch(
     files: List[UploadFile],
     user: User = Depends(get_current_user),
 ):
-    """Upload multiple resumes in parallel (concurrency limited to 5)."""
-    # Read all file bytes upfront
+    """Upload one or more resumes in parallel (concurrency limited to 5).
+
+    Returns once parsing finishes. Embedding generation and skill rows are
+    persisted in the background — callers that match/list immediately after
+    upload may briefly see a null embedding and an empty skills join.
+    """
     file_data = []
     for f in files:
         file_bytes = await f.read()
         file_data.append((file_bytes, f.filename or "resume.pdf"))
 
-    semaphore = asyncio.Semaphore(5)
-
     async def process_one(file_bytes: bytes, filename: str) -> ResumeOut:
-        async with semaphore:
+        async with LLM_SEMAPHORE:
+            extract_start = time.perf_counter()
+            raw_text = extract_text(file_bytes, filename)
+            logger.info(
+                "extract_text: %s (%d bytes) -> %.2fs",
+                filename,
+                len(file_bytes),
+                time.perf_counter() - extract_start,
+            )
+            if not raw_text.strip():
+                raise ValueError("Could not extract text from file")
+
+            parsed = await parse_resume(raw_text)
+
+            db_start = time.perf_counter()
             async with async_session() as db:
-                raw_text = extract_text(file_bytes, filename)
-                if not raw_text.strip():
-                    raise ValueError("Could not extract text from file")
-
-                parsed = await parse_resume(raw_text)
-                embedding = generate_embedding(raw_text)
-
                 resume = Resume(
                     user_id=user.id,
                     file_name=filename,
                     raw_text=raw_text,
                     parsed_data=parsed.model_dump(),
-                    embedding=embedding,
                     overall_confidence=parsed.overall_confidence,
                 )
                 db.add(resume)
-                await db.flush()
-
-                for s in parsed.skills:
-                    db.add(ResumeSkill(
-                        resume_id=resume.id,
-                        skill=s.skill,
-                        years_exp=s.years_exp,
-                        confidence=s.confidence,
-                    ))
-
                 await db.commit()
-                await db.refresh(resume, ["skills"])
+                await db.refresh(resume)
+            logger.info("resume insert: %s -> %.2fs", filename, time.perf_counter() - db_start)
 
-                return ResumeOut(
-                    id=resume.id,
-                    file_name=resume.file_name,
-                    parsed_data=resume.parsed_data,
-                    overall_confidence=resume.overall_confidence,
-                    uploaded_at=resume.uploaded_at,
-                    skills=[
-                        SkillExtracted(skill=s.skill, years_exp=s.years_exp, confidence=s.confidence)
-                        for s in resume.skills
-                    ],
-                )
+        spawn_background(_finalize_resume(resume.id, raw_text, parsed.skills))
+
+        return ResumeOut(
+            id=resume.id,
+            file_name=resume.file_name,
+            parsed_data=resume.parsed_data,
+            overall_confidence=resume.overall_confidence,
+            uploaded_at=resume.uploaded_at,
+            skills=[
+                SkillExtracted(skill=s.skill, years_exp=s.years_exp, confidence=s.confidence)
+                for s in parsed.skills
+            ],
+        )
 
     tasks = [process_one(fb, fn) for fb, fn in file_data]
     results = await asyncio.gather(*tasks, return_exceptions=True)

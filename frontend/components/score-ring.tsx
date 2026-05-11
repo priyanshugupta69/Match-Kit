@@ -15,7 +15,7 @@ export function ScoreRing({
   const offset = circumference - (score * circumference);
 
   const color =
-    pct >= 75 ? "#1a3cff" : pct >= 50 ? "#f59e0b" : "#e8440a";
+    pct >= 75 ? "#1F6B3A" : pct >= 50 ? "#f59e0b" : "#dc2626";
 
   return (
     <div className="flex flex-col items-center gap-1">

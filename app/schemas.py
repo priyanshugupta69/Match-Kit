@@ -89,6 +89,13 @@ class MatchResultOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class MatchHistoryItem(MatchResultOut):
+    resume_file_name: Optional[str] = None
+    resume_candidate_name: Optional[str] = None
+    jd_title: Optional[str] = None
+    jd_company: Optional[str] = None
+
+
 class BatchUploadResult(BaseModel):
     successful: List[ResumeOut]
     failed: List[Dict]  # {"file_name": str, "error": str}

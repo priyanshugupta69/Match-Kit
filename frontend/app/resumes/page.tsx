@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   listResumes,
-  uploadResume,
   uploadResumes,
   type Resume,
   type BatchUploadResult,
 } from "@/lib/api";
 import { AuthGuard } from "@/components/auth-guard";
+import { ParsingProgress } from "@/components/parsing-progress";
 
 interface ExpEntry {
   title?: string;
@@ -152,20 +152,15 @@ function ResumesContent() {
     setUploading(true);
     setError(null);
     try {
-      if (selectedFiles.length === 1) {
-        const resume = await uploadResume(selectedFiles[0]);
-        setResumes((prev) => [resume, ...prev]);
-      } else {
-        const result: BatchUploadResult = await uploadResumes(selectedFiles);
-        if (result.successful.length > 0) {
-          setResumes((prev) => [...result.successful, ...prev]);
-        }
-        if (result.failed.length > 0) {
-          const failedNames = result.failed
-            .map((f) => `${f.file_name}: ${f.error}`)
-            .join("; ");
-          setError(`Some files failed: ${failedNames}`);
-        }
+      const result: BatchUploadResult = await uploadResumes(selectedFiles);
+      if (result.successful.length > 0) {
+        setResumes((prev) => [...result.successful, ...prev]);
+      }
+      if (result.failed.length > 0) {
+        const failedNames = result.failed
+          .map((f) => `${f.file_name}: ${f.error}`)
+          .join("; ");
+        setError(`Some files failed: ${failedNames}`);
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -262,9 +257,10 @@ function ResumesContent() {
       )}
 
       {uploading && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm">
-          Uploading and parsing resume(s) with Claude... This may take a moment.
-        </div>
+        <ParsingProgress
+          variant="resume"
+          files={selectedFiles.map((f) => f.name)}
+        />
       )}
 
       {loading ? (

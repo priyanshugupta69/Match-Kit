@@ -70,6 +70,7 @@ async def generate_json_text(user_text: str, max_output_tokens: int) -> str:
         config=types.GenerateContentConfig(
             max_output_tokens=max_output_tokens,
             response_mime_type="application/json",
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         ),
     )
     raw = (response.text or "").strip()

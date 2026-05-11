@@ -12,7 +12,13 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import JobDescription, MatchResult, Resume, User
-from app.schemas import BatchMatchRequest, BatchMatchResponse, MatchResultOut, SkillGap
+from app.schemas import (
+    BatchMatchRequest,
+    BatchMatchResponse,
+    MatchHistoryItem,
+    MatchResultOut,
+    SkillGap,
+)
 from app.services.embeddings import cosine_similarity
 from app.services.matching import compute_skill_gaps, rerank_candidates
 
@@ -55,7 +61,7 @@ async def _match_single(
 def _build_result_out(mr: MatchResult, gaps: list[SkillGap] | None = None) -> MatchResultOut:
     sim = mr.similarity_score or 0.0
     rerank = mr.rerank_score or sim
-    final = (sim * 0.4 + rerank * 0.6) if mr.rerank_score else sim
+    final = (sim * 0.2 + rerank * 0.8) if mr.rerank_score else sim
     return MatchResultOut(
         id=mr.id,
         resume_id=mr.resume_id,
@@ -170,3 +176,58 @@ async def get_match_results(jd_id: uuid.UUID, db: AsyncSession = Depends(get_db)
     )
     results = result.scalars().all()
     return [_build_result_out(mr) for mr in results]
+
+
+@router.get("/history", response_model=list[MatchHistoryItem])
+async def get_match_history(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return every match the current user has run, newest first, with resume/JD context."""
+    result = await db.execute(
+        select(MatchResult)
+        .options(
+            selectinload(MatchResult.resume).selectinload(Resume.skills),
+            selectinload(MatchResult.job_description),
+        )
+        .where(MatchResult.user_id == user.id)
+        .order_by(MatchResult.created_at.desc())
+    )
+    rows = result.scalars().all()
+
+    items: list[MatchHistoryItem] = []
+    for mr in rows:
+        base = _build_result_out(mr)
+        resume = mr.resume
+        jd = mr.job_description
+
+        # Recompute skill gaps from stored skills + JD parsed data so the
+        # history view shows the same breakdown as a fresh match.
+        gaps: list[SkillGap] = []
+        candidate_name: str | None = None
+        if resume is not None and jd is not None:
+            resume_skill_names = [s.skill for s in (resume.skills or [])]
+            jd_parsed = jd.parsed_data or {}
+            jd_required = [s["skill"] for s in jd_parsed.get("required_skills", [])]
+            jd_nice = [s["skill"] for s in jd_parsed.get("nice_to_have_skills", [])]
+            gaps = compute_skill_gaps(resume_skill_names, jd_required, jd_nice)
+
+            parsed_resume = resume.parsed_data or {}
+            if isinstance(parsed_resume, dict):
+                name_val = parsed_resume.get("name")
+                if isinstance(name_val, str) and name_val.strip():
+                    candidate_name = name_val
+
+        base_data = base.model_dump()
+        base_data["skill_gaps"] = gaps
+        items.append(
+            MatchHistoryItem(
+                **base_data,
+                resume_file_name=resume.file_name if resume else None,
+                resume_candidate_name=candidate_name,
+                jd_title=jd.title if jd else None,
+                jd_company=jd.company if jd else None,
+            )
+        )
+
+    return items

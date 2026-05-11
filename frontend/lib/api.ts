@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9000";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -184,6 +184,13 @@ export interface BatchMatchResponse {
   total: number;
 }
 
+export interface MatchHistoryItem extends MatchResult {
+  resume_file_name: string | null;
+  resume_candidate_name: string | null;
+  jd_title: string | null;
+  jd_company: string | null;
+}
+
 export interface BatchUploadResult {
   successful: Resume[];
   failed: { file_name: string; error: string }[];
@@ -199,12 +206,6 @@ export async function uploadResumes(files: File[]): Promise<BatchUploadResult> {
     method: "POST",
     body: form,
   });
-}
-
-export async function uploadResume(file: File): Promise<Resume> {
-  const form = new FormData();
-  form.append("file", file);
-  return request<Resume>("/api/resumes/upload", { method: "POST", body: form });
 }
 
 export async function listResumes(): Promise<Resume[]> {
@@ -260,4 +261,8 @@ export async function matchBatch(
 
 export async function getMatchResults(jdId: string): Promise<MatchResult[]> {
   return request<MatchResult[]>(`/api/match/results/${jdId}`);
+}
+
+export async function getMatchHistory(): Promise<MatchHistoryItem[]> {
+  return request<MatchHistoryItem[]>("/api/match/history");
 }

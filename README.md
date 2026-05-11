@@ -171,7 +171,7 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:3000`.
+Frontend runs at `http://localhost:3001` (port is configured in `frontend/.env`).
 
 ## API Endpoints
 
