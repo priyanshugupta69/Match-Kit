@@ -96,6 +96,15 @@ class MatchHistoryItem(MatchResultOut):
     jd_company: Optional[str] = None
 
 
+class MatchRoleSummary(BaseModel):
+    jd_id: uuid.UUID
+    jd_title: Optional[str] = None
+    jd_company: Optional[str] = None
+    match_count: int
+    latest_match_at: datetime
+    best_score: Optional[float] = None
+
+
 class BatchUploadResult(BaseModel):
     successful: List[ResumeOut]
     failed: List[Dict]  # {"file_name": str, "error": str}

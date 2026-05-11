@@ -7,15 +7,18 @@ import {
   createJD,
   matchSingle,
   matchBatch,
-  getMatchHistory,
+  getMatchHistorySummary,
+  getMatchesForRole,
   type Resume,
   type JobDescription,
   type MatchResult,
   type MatchHistoryItem,
+  type MatchRoleSummary,
 } from "@/lib/api";
 import { ScoreRing } from "@/components/score-ring";
 import { SkillBadge } from "@/components/skill-badge";
 import { AuthGuard } from "@/components/auth-guard";
+import { ParsingProgress } from "@/components/parsing-progress";
 
 export default function MatchPage() {
   return (
@@ -50,29 +53,36 @@ function formatRelative(iso: string): string {
 function MatchContent() {
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [jds, setJds] = useState<JobDescription[]>([]);
-  const [history, setHistory] = useState<MatchHistoryItem[]>([]);
+  const [summary, setSummary] = useState<MatchRoleSummary[]>([]);
+  const [itemsByRole, setItemsByRole] = useState<
+    Record<string, MatchHistoryItem[]>
+  >({});
+  const [loadingRoles, setLoadingRoles] = useState<Set<string>>(new Set());
+  const [roleErrors, setRoleErrors] = useState<Record<string, string>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState("");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState("");
 
   const [showNewMatch, setShowNewMatch] = useState(false);
   const [addCandidatesGroup, setAddCandidatesGroup] =
     useState<HistoryGroup | null>(null);
 
-  const loadAll = async () => {
+  const loadInitial = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [r, j, h] = await Promise.all([
+      const [r, j, s] = await Promise.all([
         listResumes(),
         listJDs(),
-        getMatchHistory(),
+        getMatchHistorySummary(),
       ]);
       setResumes(r);
       setJds(j);
-      setHistory(h);
+      setSummary(s);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "We couldn't load this page.");
     } finally {
@@ -81,72 +91,92 @@ function MatchContent() {
   };
 
   useEffect(() => {
-    loadAll();
+    loadInitial();
   }, []);
 
-  const refreshHistory = async () => {
+  const refreshSummary = async () => {
     setRefreshing(true);
     try {
-      setHistory(await getMatchHistory());
+      setSummary(await getMatchHistorySummary());
     } finally {
       setRefreshing(false);
     }
   };
 
-  const filtered = useMemo(() => {
-    if (!filter.trim()) return history;
-    const q = filter.toLowerCase();
-    return history.filter((it) =>
-      [
-        it.jd_title,
-        it.jd_company,
-        it.resume_file_name,
-        it.resume_candidate_name,
-      ]
-        .filter(Boolean)
-        .some((v) => (v as string).toLowerCase().includes(q))
-    );
-  }, [history, filter]);
-
-  const groups: HistoryGroup[] = useMemo(() => {
-    const map = new Map<string, HistoryGroup>();
-    for (const it of filtered) {
-      const g = map.get(it.jd_id);
-      if (g) {
-        g.items.push(it);
-        if (it.created_at > g.latest) g.latest = it.created_at;
-      } else {
-        map.set(it.jd_id, {
-          jdId: it.jd_id,
-          jdTitle: it.jd_title || "Untitled role",
-          jdCompany: it.jd_company,
-          items: [it],
-          latest: it.created_at,
-        });
-      }
+  const loadRoleItems = async (jdId: string) => {
+    setLoadingRoles((prev) => new Set(prev).add(jdId));
+    setRoleErrors((prev) => {
+      const n = { ...prev };
+      delete n[jdId];
+      return n;
+    });
+    try {
+      const items = await getMatchesForRole(jdId);
+      setItemsByRole((prev) => ({ ...prev, [jdId]: items }));
+    } catch (e: unknown) {
+      setRoleErrors((prev) => ({
+        ...prev,
+        [jdId]:
+          e instanceof Error
+            ? e.message
+            : "We couldn't load candidates for this role.",
+      }));
+    } finally {
+      setLoadingRoles((prev) => {
+        const n = new Set(prev);
+        n.delete(jdId);
+        return n;
+      });
     }
-    return Array.from(map.values())
-      .map((g) => {
-        g.items.sort((a, b) => (b.final_score || 0) - (a.final_score || 0));
-        return g;
-      })
-      .sort((a, b) => (a.latest > b.latest ? -1 : 1));
-  }, [filtered]);
+  };
 
-  // Roles that have never been matched against anyone yet
-  const unmatchedRoles = useMemo(() => {
-    const matchedJdIds = new Set(history.map((h) => h.jd_id));
-    return jds.filter((jd) => !matchedJdIds.has(jd.id));
-  }, [jds, history]);
+  const toggleGroup = (jdId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(jdId)) {
+        next.delete(jdId);
+      } else {
+        next.add(jdId);
+        if (!itemsByRole[jdId] && !loadingRoles.has(jdId)) {
+          loadRoleItems(jdId);
+        }
+      }
+      return next;
+    });
+  };
 
-  const toggle = (id: string) => {
-    setExpanded((prev) => {
+  const toggleItem = (id: string) => {
+    setExpandedItems((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
   };
+
+  const filteredSummary = useMemo(() => {
+    const list = summary.map((s) => ({
+      ...s,
+      jd_title: s.jd_title || "Untitled role",
+    }));
+    if (!filter.trim()) return list;
+    const q = filter.toLowerCase();
+    return list.filter((s) =>
+      [s.jd_title, s.jd_company]
+        .filter(Boolean)
+        .some((v) => (v as string).toLowerCase().includes(q))
+    );
+  }, [summary, filter]);
+
+  const unmatchedRoles = useMemo(() => {
+    const matchedJdIds = new Set(summary.map((s) => s.jd_id));
+    return jds.filter((jd) => !matchedJdIds.has(jd.id));
+  }, [jds, summary]);
+
+  const totalMatches = useMemo(
+    () => summary.reduce((acc, s) => acc + s.match_count, 0),
+    [summary]
+  );
 
   if (loading) {
     return <div className="text-center py-20 text-[#7a7670]">Loading…</div>;
@@ -177,7 +207,7 @@ function MatchContent() {
         </div>
       )}
 
-      {history.length === 0 && unmatchedRoles.length === 0 ? (
+      {summary.length === 0 && unmatchedRoles.length === 0 ? (
         <EmptyState onNewMatch={() => setShowNewMatch(true)} />
       ) : (
         <>
@@ -212,18 +242,18 @@ function MatchContent() {
 
           <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
             <p className="text-xs font-mono text-[#7a7670]">
-              {filtered.length} match{filtered.length !== 1 ? "es" : ""} across{" "}
-              {groups.length} role{groups.length !== 1 ? "s" : ""}
+              {totalMatches} match{totalMatches !== 1 ? "es" : ""} across{" "}
+              {summary.length} role{summary.length !== 1 ? "s" : ""}
             </p>
             <div className="flex items-center gap-3">
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter by role, company, or candidate…"
+                placeholder="Filter by role or company…"
                 className="px-3 py-1.5 text-sm bg-white border border-[#d8d3c9] rounded-lg focus:outline-none focus:border-[#1F6B3A] w-72 max-w-full"
               />
               <button
-                onClick={refreshHistory}
+                onClick={refreshSummary}
                 disabled={refreshing}
                 className="text-xs font-mono text-[#7a7670] hover:text-[#1F6B3A] disabled:opacity-40"
               >
@@ -232,20 +262,47 @@ function MatchContent() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            {groups.map((g) => (
-              <GroupCard
-                key={g.jdId}
-                group={g}
-                expanded={expanded}
-                onToggle={toggle}
-                onAddCandidates={() => setAddCandidatesGroup(g)}
-                canAddMore={resumes.some(
-                  (r) => !g.items.find((it) => it.resume_id === r.id)
-                )}
-              />
-            ))}
-          </div>
+          {filteredSummary.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-[#d8d3c9] rounded-2xl text-sm text-[#7a7670]">
+              No roles match your filter.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredSummary.map((s) => (
+                <GroupCard
+                  key={s.jd_id}
+                  summary={s}
+                  isExpanded={expandedGroups.has(s.jd_id)}
+                  isLoading={loadingRoles.has(s.jd_id)}
+                  loadError={roleErrors[s.jd_id]}
+                  items={itemsByRole[s.jd_id]}
+                  expandedItems={expandedItems}
+                  onToggleGroup={() => toggleGroup(s.jd_id)}
+                  onToggleItem={toggleItem}
+                  onRetry={() => loadRoleItems(s.jd_id)}
+                  onAddCandidates={() => {
+                    const items = itemsByRole[s.jd_id] || [];
+                    setAddCandidatesGroup({
+                      jdId: s.jd_id,
+                      jdTitle: s.jd_title || "Untitled role",
+                      jdCompany: s.jd_company,
+                      items,
+                      latest: s.latest_match_at,
+                    });
+                  }}
+                  canAddMore={
+                    !!itemsByRole[s.jd_id] &&
+                    resumes.some(
+                      (r) =>
+                        !itemsByRole[s.jd_id]?.find(
+                          (it) => it.resume_id === r.id
+                        )
+                    )
+                  }
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -254,8 +311,17 @@ function MatchContent() {
           roles={jds}
           candidates={resumes}
           onClose={() => setShowNewMatch(false)}
-          onMatched={async () => {
-            await refreshHistory();
+          onMatched={async (roleId) => {
+            // Invalidate cached items for this role; refresh summary.
+            setItemsByRole((prev) => {
+              const n = { ...prev };
+              delete n[roleId];
+              return n;
+            });
+            await refreshSummary();
+            // Auto-expand the role that was just matched so the user lands on results.
+            setExpandedGroups((prev) => new Set(prev).add(roleId));
+            await loadRoleItems(roleId);
             setShowNewMatch(false);
           }}
           onRoleCreated={async (jd) => {
@@ -270,7 +336,9 @@ function MatchContent() {
           candidates={resumes}
           onClose={() => setAddCandidatesGroup(null)}
           onMatched={async () => {
-            await refreshHistory();
+            const roleId = addCandidatesGroup.jdId;
+            await refreshSummary();
+            await loadRoleItems(roleId);
             setAddCandidatesGroup(null);
           }}
         />
@@ -297,129 +365,214 @@ function EmptyState({ onNewMatch }: { onNewMatch: () => void }) {
 }
 
 function GroupCard({
-  group,
-  expanded,
-  onToggle,
+  summary,
+  isExpanded,
+  isLoading,
+  loadError,
+  items,
+  expandedItems,
+  onToggleGroup,
+  onToggleItem,
+  onRetry,
   onAddCandidates,
   canAddMore,
 }: {
-  group: HistoryGroup;
-  expanded: Set<string>;
-  onToggle: (id: string) => void;
+  summary: MatchRoleSummary;
+  isExpanded: boolean;
+  isLoading: boolean;
+  loadError?: string;
+  items?: MatchHistoryItem[];
+  expandedItems: Set<string>;
+  onToggleGroup: () => void;
+  onToggleItem: (id: string) => void;
+  onRetry: () => void;
   onAddCandidates: () => void;
   canAddMore: boolean;
 }) {
+  const title = summary.jd_title || "Untitled role";
+  const bestPct =
+    summary.best_score != null ? Math.round(summary.best_score * 100) : null;
+  const bestColor =
+    bestPct != null && bestPct >= 75
+      ? "text-[#1F6B3A] bg-green-50 border-green-200"
+      : bestPct != null && bestPct >= 50
+      ? "text-amber-700 bg-amber-50 border-amber-200"
+      : "text-red-700 bg-red-50 border-red-200";
+
   return (
     <div className="bg-white border border-[#d8d3c9] rounded-2xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#f0ede7] flex items-center justify-between gap-4">
-        <div className="min-w-0">
+      <button
+        onClick={onToggleGroup}
+        className="w-full px-5 py-4 flex items-center justify-between gap-4 hover:bg-[#fafaf8] transition-colors text-left"
+      >
+        <div className="min-w-0 flex-1">
           <p className="text-[10px] font-mono uppercase text-[#7a7670] mb-1">
-            {group.jdCompany ? group.jdCompany : "Role"}
+            {summary.jd_company || "Role"}
           </p>
-          <p className="text-base font-semibold truncate">{group.jdTitle}</p>
+          <p className="text-base font-semibold truncate">{title}</p>
         </div>
-        <div className="text-right shrink-0">
-          <p className="text-xs text-[#7a7670] font-mono">
-            {group.items.length} candidate
-            {group.items.length !== 1 ? "s" : ""}
-          </p>
-          <p className="text-[10px] text-[#7a7670]/70 font-mono">
-            last {formatRelative(group.latest)}
-          </p>
-        </div>
-      </div>
-
-      <ul className="divide-y divide-[#f0ede7]">
-        {group.items.map((it, idx) => {
-          const isOpen = expanded.has(it.id);
-          const candidate =
-            it.resume_candidate_name ||
-            it.resume_file_name ||
-            it.resume_id.slice(0, 8);
-          const finalPct =
-            it.final_score != null ? Math.round(it.final_score * 100) : null;
-          const scoreColor =
-            finalPct != null && finalPct >= 75
-              ? "text-[#1F6B3A] bg-green-50 border-green-200"
-              : finalPct != null && finalPct >= 50
-              ? "text-amber-700 bg-amber-50 border-amber-200"
-              : "text-red-700 bg-red-50 border-red-200";
-
-          return (
-            <li key={it.id}>
-              <button
-                onClick={() => onToggle(it.id)}
-                className="w-full px-5 py-3 flex items-center gap-4 hover:bg-[#fafaf8] transition-colors text-left"
-              >
-                <span className="font-mono text-xs text-[#d8d3c9] w-6 shrink-0">
-                  #{idx + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{candidate}</p>
-                  <p className="text-[11px] text-[#7a7670] font-mono">
-                    {it.skills_matched.length} matched ·{" "}
-                    {it.skills_missing.length} missing ·{" "}
-                    {formatRelative(it.created_at)}
-                  </p>
-                </div>
-                {finalPct != null && (
-                  <span
-                    className={`font-mono text-xs px-2.5 py-1 rounded-full border ${scoreColor}`}
-                  >
-                    {finalPct}%
-                  </span>
-                )}
-                <svg
-                  className={`w-4 h-4 text-[#7a7670] transition-transform shrink-0 ${
-                    isOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-              {isOpen && (
-                <div className="px-5 pb-5 pt-1 bg-[#fafaf8]">
-                  <MatchCard
-                    result={it}
-                    title={candidate}
-                    subtitle={
-                      it.resume_file_name &&
-                      it.resume_candidate_name &&
-                      it.resume_file_name !== it.resume_candidate_name
-                        ? it.resume_file_name
-                        : undefined
-                    }
-                  />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      <div className="px-5 py-3 border-t border-[#f0ede7] bg-[#fafaf8]/50">
-        {canAddMore ? (
-          <button
-            onClick={onAddCandidates}
-            className="text-sm font-medium text-[#1F6B3A] hover:text-[#15522B] flex items-center gap-1.5"
+        <div className="flex items-center gap-3 shrink-0">
+          {bestPct != null && (
+            <span
+              className={`font-mono text-xs px-2.5 py-1 rounded-full border ${bestColor}`}
+              title="Top candidate score"
+            >
+              top {bestPct}%
+            </span>
+          )}
+          <div className="text-right">
+            <p className="text-xs text-[#7a7670] font-mono">
+              {summary.match_count} candidate
+              {summary.match_count !== 1 ? "s" : ""}
+            </p>
+            <p className="text-[10px] text-[#7a7670]/70 font-mono">
+              last {formatRelative(summary.latest_match_at)}
+            </p>
+          </div>
+          <svg
+            className={`w-4 h-4 text-[#7a7670] transition-transform ${
+              isExpanded ? "rotate-180" : ""
+            }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <span className="text-base leading-none">+</span> Add more
-            candidates
-          </button>
-        ) : (
-          <p className="text-xs text-[#7a7670] italic">
-            All candidates have been matched against this role.
-          </p>
-        )}
-      </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="border-t border-[#f0ede7]">
+          {isLoading ? (
+            <div className="px-5 py-8 text-center text-sm text-[#7a7670]">
+              <span className="dot-pulse inline-flex">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="ml-2">Loading candidates…</span>
+            </div>
+          ) : loadError ? (
+            <div className="px-5 py-6 text-center">
+              <p className="text-sm text-red-700 mb-2">{loadError}</p>
+              <button
+                onClick={onRetry}
+                className="text-xs font-medium text-[#1F6B3A] hover:underline"
+              >
+                Try again
+              </button>
+            </div>
+          ) : items && items.length > 0 ? (
+            <>
+              <ul className="divide-y divide-[#f0ede7]">
+                {items.map((it, idx) => {
+                  const isOpen = expandedItems.has(it.id);
+                  const candidate =
+                    it.resume_candidate_name ||
+                    it.resume_file_name ||
+                    it.resume_id.slice(0, 8);
+                  const finalPct =
+                    it.final_score != null
+                      ? Math.round(it.final_score * 100)
+                      : null;
+                  const scoreColor =
+                    finalPct != null && finalPct >= 75
+                      ? "text-[#1F6B3A] bg-green-50 border-green-200"
+                      : finalPct != null && finalPct >= 50
+                      ? "text-amber-700 bg-amber-50 border-amber-200"
+                      : "text-red-700 bg-red-50 border-red-200";
+
+                  return (
+                    <li key={it.id}>
+                      <button
+                        onClick={() => onToggleItem(it.id)}
+                        className="w-full px-5 py-3 flex items-center gap-4 hover:bg-[#fafaf8] transition-colors text-left"
+                      >
+                        <span className="font-mono text-xs text-[#d8d3c9] w-6 shrink-0">
+                          #{idx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">
+                            {candidate}
+                          </p>
+                          <p className="text-[11px] text-[#7a7670] font-mono">
+                            {it.skills_matched.length} matched ·{" "}
+                            {it.skills_missing.length} missing ·{" "}
+                            {formatRelative(it.created_at)}
+                          </p>
+                        </div>
+                        {finalPct != null && (
+                          <span
+                            className={`font-mono text-xs px-2.5 py-1 rounded-full border ${scoreColor}`}
+                          >
+                            {finalPct}%
+                          </span>
+                        )}
+                        <svg
+                          className={`w-4 h-4 text-[#7a7670] transition-transform shrink-0 ${
+                            isOpen ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      {isOpen && (
+                        <div className="px-5 pb-5 pt-1 bg-[#fafaf8]">
+                          <MatchCard
+                            result={it}
+                            title={candidate}
+                            subtitle={
+                              it.resume_file_name &&
+                              it.resume_candidate_name &&
+                              it.resume_file_name !== it.resume_candidate_name
+                                ? it.resume_file_name
+                                : undefined
+                            }
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="px-5 py-3 border-t border-[#f0ede7] bg-[#fafaf8]/50">
+                {canAddMore ? (
+                  <button
+                    onClick={onAddCandidates}
+                    className="text-sm font-medium text-[#1F6B3A] hover:text-[#15522B] flex items-center gap-1.5"
+                  >
+                    <span className="text-base leading-none">+</span> Add more
+                    candidates
+                  </button>
+                ) : (
+                  <p className="text-xs text-[#7a7670] italic">
+                    All candidates have been matched against this role.
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="px-5 py-6 text-center text-sm text-[#7a7670]">
+              No candidates scored against this role yet.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -650,7 +803,7 @@ function NewMatchModal({
   roles: JobDescription[];
   candidates: Resume[];
   onClose: () => void;
-  onMatched: () => Promise<void>;
+  onMatched: (roleId: string) => Promise<void>;
   onRoleCreated: (jd: JobDescription) => Promise<void>;
 }) {
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
@@ -705,14 +858,20 @@ function NewMatchModal({
     setErr(null);
     try {
       await runMatchApi(selectedRoleId, Array.from(selected));
-      await onMatched();
+      await onMatched(selectedRoleId);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Match failed. Please retry.");
       setMatching(false);
     }
   };
 
-  const subtitle = creating
+  const selectedCandidateNames = candidates
+    .filter((c) => selected.has(c.id))
+    .map((c) => (c.parsed_data?.name as string | undefined) || c.file_name);
+
+  const subtitle = matching
+    ? "Running the match — this usually takes a few seconds."
+    : creating
     ? "Add a new role, then pick candidates to match."
     : selectedRoleId
     ? "Pick the candidates you'd like to score against this role."
@@ -773,7 +932,9 @@ function NewMatchModal({
         </div>
       )}
 
-      {creating ? (
+      {matching ? (
+        <ParsingProgress variant="match" files={selectedCandidateNames} />
+      ) : creating ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -931,11 +1092,17 @@ function AddCandidatesModal({
     }
   };
 
+  const selectedNames = available
+    .filter((c) => selected.has(c.id))
+    .map((c) => (c.parsed_data?.name as string | undefined) || c.file_name);
+
   return (
     <ModalShell
       title={`Add candidates to "${group.jdTitle}"`}
       subtitle={
-        excluded.size > 0
+        matching
+          ? "Running the match — this usually takes a few seconds."
+          : excluded.size > 0
           ? `${excluded.size} candidate${
               excluded.size !== 1 ? "s" : ""
             } already matched — not shown.`
@@ -946,7 +1113,8 @@ function AddCandidatesModal({
         <>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-[#7a7670] hover:text-[#2c2925]"
+            disabled={matching}
+            className="px-4 py-2 text-sm font-medium text-[#7a7670] hover:text-[#2c2925] disabled:opacity-40"
           >
             Cancel
           </button>
@@ -969,12 +1137,16 @@ function AddCandidatesModal({
           {err}
         </div>
       )}
-      <CandidatePicker
-        candidates={available}
-        selected={selected}
-        onToggle={toggle}
-        onSelectAll={selectAll}
-      />
+      {matching ? (
+        <ParsingProgress variant="match" files={selectedNames} />
+      ) : (
+        <CandidatePicker
+          candidates={available}
+          selected={selected}
+          onToggle={toggle}
+          onSelectAll={selectAll}
+        />
+      )}
     </ModalShell>
   );
 }

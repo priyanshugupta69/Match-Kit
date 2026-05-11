@@ -5,7 +5,7 @@ import uuid
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +17,7 @@ from app.schemas import (
     BatchMatchResponse,
     MatchHistoryItem,
     MatchResultOut,
+    MatchRoleSummary,
     SkillGap,
 )
 from app.services.embeddings import cosine_similarity
@@ -178,6 +179,38 @@ async def get_match_results(jd_id: uuid.UUID, db: AsyncSession = Depends(get_db)
     return [_build_result_out(mr) for mr in results]
 
 
+def _build_history_item(mr: MatchResult) -> MatchHistoryItem:
+    """Map a MatchResult (with resume + job_description eagerly loaded) into a MatchHistoryItem."""
+    base = _build_result_out(mr)
+    resume = mr.resume
+    jd = mr.job_description
+
+    gaps: list[SkillGap] = []
+    candidate_name: str | None = None
+    if resume is not None and jd is not None:
+        resume_skill_names = [s.skill for s in (resume.skills or [])]
+        jd_parsed = jd.parsed_data or {}
+        jd_required = [s["skill"] for s in jd_parsed.get("required_skills", [])]
+        jd_nice = [s["skill"] for s in jd_parsed.get("nice_to_have_skills", [])]
+        gaps = compute_skill_gaps(resume_skill_names, jd_required, jd_nice)
+
+        parsed_resume = resume.parsed_data or {}
+        if isinstance(parsed_resume, dict):
+            name_val = parsed_resume.get("name")
+            if isinstance(name_val, str) and name_val.strip():
+                candidate_name = name_val
+
+    base_data = base.model_dump()
+    base_data["skill_gaps"] = gaps
+    return MatchHistoryItem(
+        **base_data,
+        resume_file_name=resume.file_name if resume else None,
+        resume_candidate_name=candidate_name,
+        jd_title=jd.title if jd else None,
+        jd_company=jd.company if jd else None,
+    )
+
+
 @router.get("/history", response_model=list[MatchHistoryItem])
 async def get_match_history(
     db: AsyncSession = Depends(get_db),
@@ -193,41 +226,65 @@ async def get_match_history(
         .where(MatchResult.user_id == user.id)
         .order_by(MatchResult.created_at.desc())
     )
-    rows = result.scalars().all()
+    return [_build_history_item(mr) for mr in result.scalars().all()]
 
-    items: list[MatchHistoryItem] = []
-    for mr in rows:
-        base = _build_result_out(mr)
-        resume = mr.resume
-        jd = mr.job_description
 
-        # Recompute skill gaps from stored skills + JD parsed data so the
-        # history view shows the same breakdown as a fresh match.
-        gaps: list[SkillGap] = []
-        candidate_name: str | None = None
-        if resume is not None and jd is not None:
-            resume_skill_names = [s.skill for s in (resume.skills or [])]
-            jd_parsed = jd.parsed_data or {}
-            jd_required = [s["skill"] for s in jd_parsed.get("required_skills", [])]
-            jd_nice = [s["skill"] for s in jd_parsed.get("nice_to_have_skills", [])]
-            gaps = compute_skill_gaps(resume_skill_names, jd_required, jd_nice)
+@router.get("/history/summary", response_model=list[MatchRoleSummary])
+async def get_history_summary(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return one row per role the user has matched against, with totals only.
 
-            parsed_resume = resume.parsed_data or {}
-            if isinstance(parsed_resume, dict):
-                name_val = parsed_resume.get("name")
-                if isinstance(name_val, str) and name_val.strip():
-                    candidate_name = name_val
-
-        base_data = base.model_dump()
-        base_data["skill_gaps"] = gaps
-        items.append(
-            MatchHistoryItem(
-                **base_data,
-                resume_file_name=resume.file_name if resume else None,
-                resume_candidate_name=candidate_name,
-                jd_title=jd.title if jd else None,
-                jd_company=jd.company if jd else None,
+    Cheap initial payload for the Match page — individual candidate results are
+    fetched lazily via /history/role/{jd_id} when a role is expanded.
+    """
+    stmt = (
+        select(
+            MatchResult.jd_id,
+            JobDescription.title,
+            JobDescription.company,
+            func.count(MatchResult.id).label("match_count"),
+            func.max(MatchResult.created_at).label("latest"),
+            func.max(MatchResult.rerank_score).label("best_rerank"),
+            func.max(MatchResult.similarity_score).label("best_similarity"),
+        )
+        .join(JobDescription, MatchResult.jd_id == JobDescription.id)
+        .where(MatchResult.user_id == user.id)
+        .group_by(MatchResult.jd_id, JobDescription.title, JobDescription.company)
+        .order_by(func.max(MatchResult.created_at).desc())
+    )
+    rows = (await db.execute(stmt)).all()
+    out: list[MatchRoleSummary] = []
+    for row in rows:
+        best = row.best_rerank if row.best_rerank is not None else row.best_similarity
+        out.append(
+            MatchRoleSummary(
+                jd_id=row.jd_id,
+                jd_title=row.title,
+                jd_company=row.company,
+                match_count=row.match_count,
+                latest_match_at=row.latest,
+                best_score=best,
             )
         )
+    return out
 
-    return items
+
+@router.get("/history/role/{jd_id}", response_model=list[MatchHistoryItem])
+async def get_history_for_role(
+    jd_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return every match in a single role, ranked by score. Lazy-loaded by the UI."""
+    result = await db.execute(
+        select(MatchResult)
+        .options(
+            selectinload(MatchResult.resume).selectinload(Resume.skills),
+            selectinload(MatchResult.job_description),
+        )
+        .where(MatchResult.user_id == user.id, MatchResult.jd_id == jd_id)
+        .order_by(MatchResult.rerank_score.desc().nullslast())
+    )
+    return [_build_history_item(mr) for mr in result.scalars().all()]

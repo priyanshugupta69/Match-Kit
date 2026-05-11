@@ -191,6 +191,15 @@ export interface MatchHistoryItem extends MatchResult {
   jd_company: string | null;
 }
 
+export interface MatchRoleSummary {
+  jd_id: string;
+  jd_title: string | null;
+  jd_company: string | null;
+  match_count: number;
+  latest_match_at: string;
+  best_score: number | null;
+}
+
 export interface BatchUploadResult {
   successful: Resume[];
   failed: { file_name: string; error: string }[];
@@ -265,4 +274,14 @@ export async function getMatchResults(jdId: string): Promise<MatchResult[]> {
 
 export async function getMatchHistory(): Promise<MatchHistoryItem[]> {
   return request<MatchHistoryItem[]>("/api/match/history");
+}
+
+export async function getMatchHistorySummary(): Promise<MatchRoleSummary[]> {
+  return request<MatchRoleSummary[]>("/api/match/history/summary");
+}
+
+export async function getMatchesForRole(
+  jdId: string
+): Promise<MatchHistoryItem[]> {
+  return request<MatchHistoryItem[]>(`/api/match/history/role/${jdId}`);
 }

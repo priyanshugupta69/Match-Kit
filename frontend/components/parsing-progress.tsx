@@ -60,6 +60,56 @@ const RESUME_STAGES: Stage[] = [
   },
 ];
 
+const MATCH_STAGES: Stage[] = [
+  {
+    label: "Loading candidates",
+    hint: "Reading their parsed profiles",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" strokeLinejoin="round" />
+        <circle cx="8.5" cy="7" r="4" />
+        <path d="M20 8v6M23 11h-6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Comparing to the role",
+    hint: "Aligning skills and experience",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+        <path d="M8 4l-4 4 4 4M16 20l4-4-4-4M14 4l-4 16" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Scoring with AI",
+    hint: "Refining match quality with context",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+        <path d="M12 3l1.8 4.6L18.4 9.4 14 11.6 12.8 16 12 12.4 8 14l1.6-4L6 8l4.4-.4z" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Ranking candidates",
+    hint: "Ordering by overall fit",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+        <path d="M3 6h13M3 12h9M3 18h6M17 6l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    label: "Building your shortlist",
+    hint: "Wrapping up",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+        <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+];
+
 const JD_STAGES: Stage[] = [
   {
     label: "Reading the role",
@@ -108,7 +158,7 @@ const JD_STAGES: Stage[] = [
   },
 ];
 
-type Variant = "resume" | "jd";
+type Variant = "resume" | "jd" | "match";
 
 interface ParsingProgressProps {
   variant: Variant;
@@ -117,8 +167,20 @@ interface ParsingProgressProps {
 
 const STAGE_DURATION_MS = 2400;
 
+const STAGES_BY_VARIANT: Record<Variant, Stage[]> = {
+  resume: RESUME_STAGES,
+  jd: JD_STAGES,
+  match: MATCH_STAGES,
+};
+
+const HEADER_BY_VARIANT: Record<Variant, string> = {
+  resume: "Analyzing resume",
+  jd: "Analyzing role",
+  match: "Matching candidates",
+};
+
 export function ParsingProgress({ variant, files }: ParsingProgressProps) {
-  const stages = variant === "resume" ? RESUME_STAGES : JD_STAGES;
+  const stages = STAGES_BY_VARIANT[variant];
   const [stageIdx, setStageIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [fileIdx, setFileIdx] = useState(0);
@@ -171,8 +233,10 @@ export function ParsingProgress({ variant, files }: ParsingProgressProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#7a7670]">
-              {variant === "resume" ? "Analyzing resume" : "Analyzing role"}
-              {files && files.length > 1 ? ` · ${files.length} files` : ""}
+              {HEADER_BY_VARIANT[variant]}
+              {files && files.length > 1
+                ? ` · ${files.length}${variant === "match" ? " candidates" : " files"}`
+                : ""}
             </p>
             <span className="font-mono text-[10px] text-[#7a7670] tabular-nums">
               {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
