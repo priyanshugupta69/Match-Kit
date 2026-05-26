@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { register, getGoogleAuthUrl } from "@/lib/api";
+import { openGoogleAuth } from "@/lib/webview";
+import { InAppBrowserBanner } from "@/components/in-app-browser-banner";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -69,11 +71,13 @@ export default function RegisterPage() {
           </div>
         )}
 
+        <InAppBrowserBanner />
+
         <button
           onClick={async () => {
             try {
               const url = await getGoogleAuthUrl();
-              window.location.href = url;
+              openGoogleAuth(url);
             } catch {
               setError("Google sign-in not available");
             }

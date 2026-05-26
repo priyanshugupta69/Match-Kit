@@ -121,7 +121,7 @@ PDF/DOCX Upload
 
 ```bash
 git clone https://github.com/your-username/resumatch.git
-cd resumatch
+cd resumatch/backend
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -166,7 +166,7 @@ Backend runs at `http://localhost:8000`. Swagger docs at `http://localhost:8000/
 ### 4. Setup & Start Frontend
 
 ```bash
-cd frontend
+cd ../frontend
 npm install
 npm run dev
 ```
@@ -192,36 +192,40 @@ Frontend runs at `http://localhost:3001` (port is configured in `frontend/.env`)
 
 ```
 .
-├── app/
-│   ├── main.py                 # FastAPI app, lifespan, CORS
-│   ├── config.py               # Pydantic settings
-│   ├── database.py             # Async SQLAlchemy engine
-│   ├── models.py               # ORM models (5 tables)
-│   ├── schemas.py              # Request/response schemas
-│   ├── routers/
-│   │   ├── resumes.py          # Resume CRUD + upload
-│   │   ├── job_descriptions.py # JD CRUD
-│   │   └── matching.py         # Single + batch matching
-│   └── services/
-│       ├── parser.py           # Claude LLM extraction
-│       ├── embeddings.py       # Sentence-transformer embeddings
-│       ├── matching.py         # Reranking + skill gap analysis
-│       └── file_processor.py   # PDF/DOCX text extraction
-├── frontend/
+├── backend/                    # FastAPI backend
 │   ├── app/
-│   │   ├── page.tsx            # Landing page
-│   │   ├── resumes/page.tsx    # Resume upload & list
-│   │   ├── job-descriptions/page.tsx  # JD creation & list
-│   │   └── match/page.tsx      # Matching UI with results
-│   ├── components/
-│   │   ├── nav.tsx             # Navigation bar
-│   │   ├── score-ring.tsx      # Circular score visualization
-│   │   └── skill-badge.tsx     # Skill status badges
-│   └── lib/
-│       └── api.ts              # Typed API client
-├── alembic/                    # Database migrations
-├── requirements.txt
-└── .env
+│   │   ├── main.py             # FastAPI app, lifespan, CORS
+│   │   ├── config.py           # Pydantic settings
+│   │   ├── database.py         # Async SQLAlchemy engine
+│   │   ├── models.py           # ORM models (5 tables)
+│   │   ├── schemas.py          # Request/response schemas
+│   │   ├── routers/
+│   │   │   ├── resumes.py      # Resume CRUD + upload
+│   │   │   ├── job_descriptions.py # JD CRUD
+│   │   │   └── matching.py     # Single + batch matching
+│   │   └── services/
+│   │       ├── parser.py       # Claude LLM extraction
+│   │       ├── embeddings.py   # Sentence-transformer embeddings
+│   │       ├── matching.py     # Reranking + skill gap analysis
+│   │       └── file_processor.py   # PDF/DOCX text extraction
+│   ├── alembic/                # Database migrations
+│   ├── alembic.ini
+│   ├── scripts/                # dev.sh, verify_gemini_connection.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── .env
+└── frontend/                   # Next.js frontend
+    ├── app/
+    │   ├── page.tsx            # Landing page
+    │   ├── resumes/page.tsx    # Resume upload & list
+    │   ├── job-descriptions/page.tsx  # JD creation & list
+    │   └── match/page.tsx      # Matching UI with results
+    ├── components/
+    │   ├── nav.tsx             # Navigation bar
+    │   ├── score-ring.tsx      # Circular score visualization
+    │   └── skill-badge.tsx     # Skill status badges
+    └── lib/
+        └── api.ts              # Typed API client
 ```
 
 ## Matching Algorithm
