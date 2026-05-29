@@ -1,20 +1,18 @@
-import json
+import ipaddress
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # ENV=production pulls DB_USER+DB_PASSWORD from AWS Secrets Manager via DB_SECRET_ARN.
-    # ENV=local (default) requires DB_USER+DB_PASSWORD to be set directly.
+    # Postgres lives on GCP Cloud SQL, reached over the shared VPC by private IP.
+    # DB_USER/DB_PASSWORD come straight from the runtime env (no secrets-manager hop).
     ENV: str = "local"
-    DB_SECRET_ARN: str = ""
     DB_HOST: str = ""
     DB_PORT: int = 5432
     DB_NAME: str = "postgres"
     DB_USER: str = ""
     DB_PASSWORD: str = ""
-    AWS_REGION: str = "us-east-1"
     APP_PORT: int = 9000
     # Gemini: use VERTEX_AI_API_KEY (Vertex express) or GEMINI_API_KEY (same secret, alternate name)
     VERTEX_AI_API_KEY: str = ""
@@ -51,30 +49,31 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", ".env.local"), extra="ignore")
 
     @model_validator(mode="after")
-    def _load_db_credentials(self):
-        if self.ENV == "production" and not (self.DB_USER and self.DB_PASSWORD):
-            if not self.DB_SECRET_ARN:
-                raise ValueError("ENV=production requires DB_SECRET_ARN (or pre-set DB_USER+DB_PASSWORD).")
-            import boto3
-            client = boto3.client("secretsmanager", region_name=self.AWS_REGION)
-            secret = json.loads(client.get_secret_value(SecretId=self.DB_SECRET_ARN)["SecretString"])
-            self.DB_USER = secret["username"]
-            self.DB_PASSWORD = secret["password"]
+    def _check_db_credentials(self):
         if not (self.DB_USER and self.DB_PASSWORD and self.DB_HOST):
             raise ValueError(
-                "Database not configured: set ENV=production + DB_SECRET_ARN + DB_HOST for AWS, "
-                "or DB_USER + DB_PASSWORD + DB_HOST for local dev."
+                "Database not configured: set DB_HOST + DB_USER + DB_PASSWORD."
             )
         return self
 
     @property
     def DATABASE_URL(self) -> str:
-        is_local_host = self.DB_HOST in ("localhost", "127.0.0.1") or self.DB_HOST.startswith("127.")
-        ssl_query = "" if is_local_host else "?ssl=require"
+        # SSL is skipped for localhost and RFC1918 private IPs (Cloud SQL over VPC);
+        # any public hostname still gets ssl=require.
+        ssl_query = "" if _is_private_or_local(self.DB_HOST) else "?ssl=require"
         return (
             f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}{ssl_query}"
         )
+
+
+def _is_private_or_local(host: str) -> bool:
+    if host == "localhost" or host.startswith("127."):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False  # hostname (not an IP) — assume public, require SSL
 
 
 settings = Settings()
